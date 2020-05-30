@@ -20,6 +20,7 @@ var
 sdist
 develop-eggs
 .installed.cfg
+.mypy_cache/
 
 # Other
 *.DS_Store
