@@ -24,10 +24,15 @@ class TestItem(unittest.TestCase):
     item = RealItem()
 
     def test_process_params(self):
-        self.assertEqual({'value': 42},
-                         self.item.process_params({'value': 42}))
+        self.assertEqual(
+            {'value': 42, 'another': 'none'},
+            self.item.process_params({'value': 42}, {'another': 'none'}, None))
 
     def test_process_params_fails(self):
         for value in [None, 42, "string", ["list"]]:
-            with self.subTest(value=value):
-                self.assertRaises(TypeError, self.item.process_params, value)
+            with self.subTest(top_level=value):
+                self.assertRaises(TypeError, self.item.process_params,
+                                  value, {}, None)
+            with self.subTest(internal=value):
+                self.assertRaises(TypeError, self.item.process_params,
+                                  {}, value, None)
