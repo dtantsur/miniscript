@@ -38,11 +38,11 @@ JsonType = typing.Union[
 ]
 
 
-ParamsType = typing.Dict[str, typing.Union[
+ParamsType = typing.Union[
     typing.Dict[str, JsonType],
     typing.List[JsonType],
     None
-]]
+]
 
 
 class Error(Exception):
@@ -137,7 +137,7 @@ class Action(metaclass=abc.ABCMeta):
         self._known = set(self.required_params).union(self.optional_params)
         self.validate()
 
-    def validate(self) -> typing.Dict[str, typing.Any]:
+    def validate(self) -> DictType:
         """Validate the passed parameters."""
         params = self._params
 
@@ -214,11 +214,7 @@ class Action(metaclass=abc.ABCMeta):
             self.engine.set_var(self.register, result)
 
     @abc.abstractmethod
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: typing.Any
-    ) -> JsonType:
+    def execute(self, params: DictType, context: typing.Any) -> JsonType:
         """Execute the action.
 
         :returns: The value stored as a result in ``register`` is set.
@@ -240,11 +236,18 @@ class Script:
         """
         self.engine = engine
         self.source = source
+
         tasks = source.get('tasks')
         if not tasks:
             raise InvalidScript('At least one task is required')
         elif not isinstance(tasks, list):
             raise InvalidScript(f'Tasks must be a list, got {tasks}')
+
+        unknown = [x for x in source if x != 'tasks']
+        if unknown:
+            raise InvalidScript("Only tasks are currently supported for a "
+                                "script, got %s" % ', '.join(unknown))
+
         self.tasks = [engine._load_action(task) for task in tasks]
 
     def __call__(self, context: typing.Any) -> None:
