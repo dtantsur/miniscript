@@ -12,24 +12,18 @@
 
 import unittest
 
-import minidpl
+from .. import _actions
+from .. import _engine
 
 
-class TestAction(minidpl.Action):
+class TestAction(_actions.Action):
     pass
 
 
 class EngineTestCase(unittest.TestCase):
 
     def test_forbidden_names(self):
-        for name in minidpl._KNOWN_PARAMETERS:
+        for name in _engine._KNOWN_PARAMETERS:
             with self.subTest(name=name):
-                self.assertRaises(ValueError, minidpl.Engine,
+                self.assertRaises(ValueError, _engine.Engine,
                                   {name: TestAction})
-
-
-class ActionTestCase(unittest.TestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.engine = minidpl.Engine({'test': TestAction})

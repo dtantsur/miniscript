@@ -10,17 +10,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from ._actions import Action
-from ._actions import Result
-from ._engine import Engine
-from ._engine import Environment
-from ._engine import Script
-from ._types import Error
-from ._types import InvalidDefinition
-from ._types import InvalidScript
-from ._types import UnknownAction
+import unittest
+
+from .. import _actions
+from .. import _engine
 
 
-__all__ = ['Action', 'Result',
-           'Engine', 'Environment', 'Script',
-           'Error', 'InvalidDefinition', 'InvalidScript', 'UnknownAction']
+class TestAction(_actions.Action):
+    pass
+
+
+class ActionTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.engine = _engine.Engine({'test': TestAction})
