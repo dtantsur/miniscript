@@ -15,24 +15,21 @@ import unittest
 import minidpl
 
 
-class RealItem(minidpl.Item):
+class TestAction(minidpl.Action):
     pass
 
 
-class TestItem(unittest.TestCase):
+class EngineTestCase(unittest.TestCase):
 
-    item = RealItem()
+    def test_forbidden_names(self):
+        for name in minidpl._KNOWN_PARAMETERS:
+            with self.subTest(name=name):
+                self.assertRaises(ValueError, minidpl.Engine,
+                                  {name: TestAction})
 
-    def test_process_params(self):
-        self.assertEqual(
-            {'value': 42, 'another': 'none'},
-            self.item.process_params({'value': 42}, {'another': 'none'}, None))
 
-    def test_process_params_fails(self):
-        for value in [None, 42, "string", ["list"]]:
-            with self.subTest(top_level=value):
-                self.assertRaises(TypeError, self.item.process_params,
-                                  value, {}, None)
-            with self.subTest(internal=value):
-                self.assertRaises(TypeError, self.item.process_params,
-                                  {}, value, None)
+class ActionTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.engine = minidpl.Engine({'test': TestAction})

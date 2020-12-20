@@ -2,4 +2,4 @@ Mini Data Processing Language
 =============================
 
 Framework for building data processing scripts using JSON-compatible
-structures.
+structures and an Ansible-like syntax.

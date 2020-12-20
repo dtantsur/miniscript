@@ -11,7 +11,18 @@
 # under the License.
 
 import abc
+import logging
 import typing
+
+from jinja2 import nativetypes  # type: ignore
+from jinja2 import sandbox  # type: ignore
+
+
+class Environment(sandbox.Environment):  # type: ignore
+    """A templating environment."""
+
+    code_generator_class = nativetypes.NativeCodeGenerator
+    template_class = nativetypes.NativeTemplate
 
 
 DictType = typing.Dict[str, typing.Any]
@@ -27,88 +38,191 @@ JsonType = typing.Union[
 ]
 
 
+ParamsType = typing.Dict[str, typing.Union[
+    typing.Dict[str, JsonType],
+    typing.List[JsonType],
+    None
+]]
+
+
 class Error(Exception):
     """Base class for all errors."""
+
+
+class InvalidScript(Error, TypeError):
+    """The script definition is invalid."""
 
 
 class InvalidDefinition(Error, ValueError):
     """A definition of an action or condition is invalid."""
 
 
-class UnknownItem(InvalidDefinition):
-    """A condition or action is not known."""
+class UnknownAction(InvalidDefinition):
+    """An action is not known."""
 
 
-class Item(metaclass=abc.ABCMeta):
-    """An abstract base class for an item."""
+class When:
+    """A when clause."""
 
-    def process_params(
+    def __init__(
         self,
-        top_level: JsonType,
-        internal: JsonType,
         engine: 'Engine',
-    ) -> DictType:
-        """Process collected parameters.
+        definition: typing.Union[str, typing.List[str]],
+    ):
+        if isinstance(definition, str):
+            definition = [definition]
+        self.definition = definition
+        self.engine = engine
 
-        The base version only allows dictionaries and pass them unprocessed.
-
-        :param top_level: Incoming parameters defined at the top level.
-        :param internal: Incoming parameters defined under the item key.
-        :param engine: An `Engine`.
-        :return: Processed parameters as a dictionary.
-        """
-        if not isinstance(top_level, dict):
-            raise TypeError("%s: expected a %s, got %s"
-                            % (self.__class__.__name__,
-                               DictType,
-                               type(top_level).__name__))
-        if not isinstance(internal, dict):
-            raise TypeError("%s: expected a %s, got %s"
-                            % (self.__class__.__name__,
-                               DictType,
-                               type(internal).__name__))
-        return dict(top_level, **internal)
+    def __call__(self, context: typing.Any) -> bool:
+        """Check the condition."""
+        return all(self.engine._evaluate(expr, context)
+                   for expr in self.definition)
 
 
-class Condition(Item):
-    """An abstract base class for a condition."""
+class Result:
 
-    @abc.abstractmethod
-    def check(self, params: DictType, context: typing.Any) -> bool:
-        """Check that the condition fullfils.
+    def __init__(
+        self,
+        result: typing.Any,
+        failure: typing.Optional[str] = None,
+    ):
+        self.succeeded = failure is None
+        self.failed = not self.succeeded
+        self.failure = failure
+        self.result = result
 
-        :param params: Parameters processed via `process_params`.
-        :param context: An application-specific object passed to Engine.
-        :return: Whether the condition fullfils.
-        """
 
-
-class Action(Item):
+class Action(metaclass=abc.ABCMeta):
     """An abstract base class for an action."""
 
+    required_params: typing.Dict[str, typing.Type] = {}
+    """A mapping with required parameters."""
+
+    optional_params: typing.Dict[str, typing.Type] = {}
+    """A mapping with optional parameters."""
+
+    list_param: typing.Optional[str] = None
+    """A name for the parameter to store if the input is a list."""
+
+    free_form: bool = False
+    """Whether this action accepts any arguments.
+
+    Validation for known arguments is still run, and required parameters are
+    still required.
+    """
+
+    def __init__(
+        self,
+        engine: 'Engine',
+        params: ParamsType,
+        name: typing.Optional[str] = None,
+        when: typing.Optional[When] = None,
+        ignore_errors: bool = False,
+        register: typing.Optional[str] = None,
+    ):
+        if (self.list_param is not None
+                and self.list_param not in self.required_params
+                and self.list_param not in self.optional_params
+                and not self.free_form):
+            raise RuntimeError("List parameters must be either a required or "
+                               "an optional parameter")
+
+        self.engine = engine
+        self._params = params
+        self.name = name
+        self.when = when
+        self.ignore_errors = ignore_errors
+        self.register = register
+        self._known = set(self.required_params).union(self.optional_params)
+        self.validate()
+
+    def validate(self) -> typing.Dict[str, typing.Any]:
+        """Validate the passed parameters."""
+        params = self._params
+
+        if isinstance(params, list):
+            if self.list_param is None:
+                raise InvalidDefinition(f"Action {self.name} does not accept "
+                                        "a list")
+            params = {self.list_param: params}
+        elif params is None:
+            params = {}
+
+        unknown = set(params).difference(self._known)
+        if not self.free_form and unknown:
+            raise InvalidDefinition("Parameters %s are not recognized"
+                                    % ', '.join(unknown))
+
+        result = {}
+        missing = []
+
+        for name, type_ in self.required_params.items():
+            try:
+                value = params[name]
+            except KeyError:
+                missing.append(name)
+            else:
+                try:
+                    result[name] = type_(value)
+                except (TypeError, ValueError) as exc:
+                    raise InvalidDefinition(
+                        f"Invalid value for parameter {name} of action "
+                        f"{self.name}: {exc}")
+
+        if missing:
+            raise InvalidDefinition("Parameters %s are required for action %s",
+                                    ','.join(missing), self.name)
+
+        for name, type_ in self.optional_params.items():
+            try:
+                value = params[name]
+            except KeyError:
+                continue
+
+            try:
+                result[name] = type_(value)
+            except (TypeError, ValueError) as exc:
+                raise InvalidDefinition(
+                    f"Invalid value for parameter {name} of action "
+                    f"{self.name}: {exc}")
+
+        return result
+
+    def __call__(self, context: typing.Any) -> None:
+        """Check conditions and execute the action in the context."""
+        if self.when is not None and not self.when(context):
+            self.engine.logger.debug("Action %s is skipped", self.name)
+
+        params = self.validate()
+
+        try:
+            value = self.execute(params, context)
+        except Exception as exc:
+            if self.ignore_errors:
+                self.engine.logger.warning("Action %s failed: %s (ignoring)",
+                                           self.name, exc)
+                result = Result(None, f"{exc.__class__.__name__}: {exc}")
+            else:
+                self.engine.logger.error("Action %s failed: %s",
+                                         self.name, exc)
+                raise
+        else:
+            result = Result(value)
+
+        if self.register is not None:
+            self.engine.set_var(self.register, result)
+
     @abc.abstractmethod
-    def execute(self, params: DictType, context: typing.Any) -> None:
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: typing.Any
+    ) -> JsonType:
         """Execute the action.
 
-        :param params: Parameters processed via `process_params`.
-        :param context: An application-specific object passed to Engine.
+        :returns: The value stored as a result in ``register`` is set.
         """
-
-
-class Executable:
-    """An action prepared for execution."""
-
-    def __init__(self, action: Action, params: DictType) -> None:
-        """Create a prepared action."""
-        self.action = action
-        self.params = params
-
-    def execute(self, context: typing.Any) -> None:
-        """Execute the action.
-
-        :param context: An application-specific object passed to Engine.
-        """
-        self.action.execute(self.params, context)
 
 
 class Script:
@@ -117,7 +231,7 @@ class Script:
     def __init__(
         self,
         engine: 'Engine',
-        source: typing.List[Executable],
+        source: DictType,
     ) -> None:
         """Create a new script.
 
@@ -126,11 +240,20 @@ class Script:
         """
         self.engine = engine
         self.source = source
+        tasks = source.get('tasks')
+        if not tasks:
+            raise InvalidScript('At least one task is required')
+        elif not isinstance(tasks, list):
+            raise InvalidScript(f'Tasks must be a list, got {tasks}')
+        self.tasks = [engine._load_action(task) for task in tasks]
 
-    def execute(self, context: typing.Any) -> None:
+    def __call__(self, context: typing.Any) -> None:
         """Execute the script."""
-        for item in self.source:
-            item.execute(context)
+        for item in self.tasks:
+            item(context)
+
+
+_KNOWN_PARAMETERS = frozenset(['name', 'when', 'ignore_errors', 'register'])
 
 
 class Engine:
@@ -138,20 +261,23 @@ class Engine:
 
     def __init__(
         self,
-        actions: typing.Dict[str, Action],
-        conditions: typing.Dict[str, Condition] = None,
-        negation: str = '~',
-        enable_builtins: bool = True,
+        actions: typing.Dict[str, typing.Type[Action]],
+        namespace: typing.Optional[typing.Dict[str, typing.Any]] = None,
+        logger_name: str = __name__,
     ) -> None:
         """Create a new engine.
 
-        :param conditions: Mapping of conditions to their implementations.
         :param actions: Mapping of actions to their implementations.
-        :param negation: A string used to negate conditions.
+        :raises: ValueError on conflicting actions.
         """
+        conflict = set(actions).intersection(_KNOWN_PARAMETERS)
+        if conflict:
+            raise ValueError('Actions %s conflict with built-in parameters'
+                             % ', '.join(conflict))
         self.actions = actions
-        self.conditions = conditions or {}
-        self.negation = negation
+        self.logger = logging.getLogger(logger_name)
+        self.namespace = namespace or {}
+        self.environment = Environment()
 
     def execute(
         self,
@@ -164,31 +290,7 @@ class Engine:
         :param context: An application-specific object.
         :return: A `Script` object for execution.
         """
-        self.prepare(source).execute(context)
-
-    def load_action(self, definition: DictType) -> Executable:
-        """Load an action from the definition.
-
-        :param definition: JSON definition of an action.
-        :return: An `Executable`
-        """
-        matching = set(definition).intersection(self.actions)
-        if not matching:
-            raise UnknownItem("Item defined by one of %s is not known"
-                              % ','.join(definition))
-        elif len(matching) > 1:
-            raise InvalidDefinition("Item with keys %s is ambiguous"
-                                    % ','.join(matching))
-
-        name = matching.pop()
-        action = self.actions[name]
-
-        top_level = {key: value for key, value in definition.items()
-                     if key != name}
-        internal = definition[name]
-
-        params = self.process_params(action, top_level, internal)
-        return Executable(action, params)
+        self.prepare(source)(context)
 
     def prepare(
         self,
@@ -199,25 +301,67 @@ class Engine:
         :param source: Script source code in JSON format.
         :return: A `Script` object for execution.
         """
-        if isinstance(source, dict):
-            source = [source]
+        if isinstance(source, list):
+            source = {'tasks': source}
 
-        parsed = [self.load_action(item) for item in source]
-        return Script(self, parsed)
+        return Script(self, source)
 
-    def process_params(
-        self,
-        item: Item,
-        top_level: JsonType,
-        internal: JsonType,
-    ) -> DictType:
-        """Process collected parameters.
+    def set_var(self, name: str, value: typing.Any):
+        """Set a variable."""
+        self.namespace[name] = value
 
-        The base version only allows dictionaries and pass them unprocessed.
+    def _load_action(self, definition: DictType) -> Action:
+        """Load an action from the definition.
 
-        :param item: An action or a condition.
-        :param top_level: Incoming parameters defined at the top level.
-        :param internal: Incoming parameters defined under the item key.
-        :return: Processed parameters as a dictionary.
+        :param definition: JSON definition of an action.
+        :return: An `Action`
         """
-        return item.process_params(top_level, internal, self)
+        matching = set(definition).intersection(self.actions)
+        if not matching:
+            raise UnknownAction("Action defined by one of %s is not known"
+                                % ','.join(definition))
+        elif len(matching) > 1:
+            raise InvalidDefinition("Item with keys %s is ambiguous"
+                                    % ','.join(matching))
+
+        name = matching.pop()
+        action = self.actions[name]
+        params = definition[name]
+        if not isinstance(params, (list, dict)):
+            raise InvalidDefinition(f"Parameters for action {name} must be a "
+                                    f"list or an object, got {params}")
+        elif isinstance(params, dict) and not all(isinstance(key, str)
+                                                  for key in params):
+            raise InvalidDefinition(f"Parameters for action {name} must "
+                                    "have string keys")
+        # We have checked compliance above
+        params = typing.cast(ParamsType, params)
+
+        top_level = {key: value for key, value in definition.items()
+                     if key != name}
+        when = top_level.pop('when', None)
+        if when is not None:
+            when = When(self, when)
+
+        ignore_errors = top_level.pop('ignore_errors', False)
+        if not isinstance(ignore_errors, bool):
+            raise InvalidDefinition("The ignore_errors parameter must be "
+                                    f"a boolean for action {name}, "
+                                    f"got {ignore_errors}")
+
+        register = top_level.pop('register', None)
+        if register is not None and not isinstance(register, str):
+            raise InvalidDefinition("The register parameter must be a string "
+                                    f"for action {name}, got {register}")
+
+        display_name = top_level.pop('name', None)
+        if display_name is not None and not isinstance(display_name, str):
+            raise InvalidDefinition("The name parameter must be a string "
+                                    f"for action {name}, got {display_name}")
+
+        return action(self, params, display_name,
+                      when, ignore_errors, register)
+
+    def _evaluate(self, expr: str, context: typing.Any) -> typing.Any:
+        """Evaluate an expression."""
+        return self.environment.from_string(expr, self.namespace).render()
