@@ -16,8 +16,9 @@ import typing
 from jinja2 import nativetypes  # type: ignore
 from jinja2 import sandbox  # type: ignore
 
-from . import _tasks
+from . import _task
 from . import _types
+from . import tasks
 
 
 class Environment(sandbox.Environment):  # type: ignore
@@ -27,12 +28,12 @@ class Environment(sandbox.Environment):  # type: ignore
     template_class = nativetypes.NativeTemplate
 
 
-_BUILTINS: typing.Dict[str, typing.Type[_tasks.Task]] = {
-    "block": _tasks.Block,
-    "fail": _tasks.Fail,
-    "log": _tasks.Log,
-    "return": _tasks.Return,
-    "vars": _tasks.Vars,
+_BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
+    "block": tasks.Block,
+    "fail": tasks.Fail,
+    "log": tasks.Log,
+    "return": tasks.Return,
+    "vars": tasks.Vars,
 }
 
 
@@ -101,7 +102,7 @@ class Engine:
 
     def __init__(
         self,
-        tasks: typing.Dict[str, typing.Type[_tasks.Task]],
+        tasks: typing.Dict[str, typing.Type[_task.Task]],
         logger: typing.Optional[logging.Logger] = None,
     ) -> None:
         """Create a new engine.
@@ -139,7 +140,7 @@ class Engine:
     def _load_task(
         self,
         definition: typing.Dict[str, typing.Any],
-    ) -> _tasks.Task:
+    ) -> _task.Task:
         """Load a task from the definition.
 
         :param definition: JSON definition of a task.
@@ -156,45 +157,7 @@ class Engine:
 
         name = matching.pop()
         task_class = self.tasks[name]
-        params = definition[name]
-        if not isinstance(params, (list, dict)):
-            raise _types.InvalidDefinition(
-                f"Parameters for task {name} must be a "
-                f"list or an object, got {params}")
-        elif isinstance(params, dict) and not all(isinstance(key, str)
-                                                  for key in params):
-            raise _types.InvalidDefinition(
-                f"Parameters for task {name} must have string keys")
-
-        # We have checked compliance above
-        params = typing.cast(_types.ParamsType, params)
-
-        top_level = {key: value for key, value in definition.items()
-                     if key != name}
-        when = top_level.pop('when', None)
-        if when is not None:
-            when = _tasks.When(self, when)
-
-        ignore_errors = top_level.pop('ignore_errors', False)
-        if not isinstance(ignore_errors, bool):
-            raise _types.InvalidDefinition(
-                "The ignore_errors parameter must be a boolean for task "
-                f"{name}, got {ignore_errors}")
-
-        register = top_level.pop('register', None)
-        if register is not None and not isinstance(register, str):
-            raise _types.InvalidDefinition(
-                "The register parameter must be a string "
-                f"for task {name}, got {register}")
-
-        display_name = top_level.pop('name', None)
-        if display_name is not None and not isinstance(display_name, str):
-            raise _types.InvalidDefinition(
-                "The name parameter must be a string "
-                f"for task {name}, got {display_name}")
-
-        return task_class(self, params, display_name or name,
-                          when, ignore_errors, register)
+        return task_class.load(name, definition, self)
 
     def _evaluate(self, expr: str, context: Context) -> typing.Any:
         """Evaluate an expression."""

@@ -13,10 +13,10 @@
 import unittest
 
 from .. import _engine
-from .. import _tasks
+from .. import _task
 
 
-class TestTask(_tasks.Task):
+class TestTask(_task.Task):
     pass
 
 

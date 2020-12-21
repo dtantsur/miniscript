@@ -36,6 +36,8 @@ class Result:
 class When:
     """A when clause."""
 
+    __slots__ = ('engine', 'definition')
+
     def __init__(
         self,
         engine: '_engine.Engine',
@@ -97,6 +99,54 @@ class Task(metaclass=abc.ABCMeta):
         self.register = register
         self._known = set(self.required_params).union(self.optional_params)
         self.params = self.validate(params)
+
+    @classmethod
+    def load(
+        cls,
+        name: str,
+        definition: typing.Dict[str, typing.Any],
+        engine: '_engine.Engine',
+    ) -> 'Task':
+        """Load a task from its definition."""
+        params = definition[name]
+        if not isinstance(params, (list, dict)):
+            raise _types.InvalidDefinition(
+                f"Parameters for task {name} must be a "
+                f"list or an object, got {params}")
+        elif isinstance(params, dict) and not all(isinstance(key, str)
+                                                  for key in params):
+            raise _types.InvalidDefinition(
+                f"Parameters for task {name} must have string keys")
+
+        # We have checked compliance above
+        params = typing.cast(_types.ParamsType, params)
+
+        top_level = {key: value for key, value in definition.items()
+                     if key != name}
+        when = top_level.pop('when', None)
+        if when is not None:
+            when = When(engine, when)
+
+        ignore_errors = top_level.pop('ignore_errors', False)
+        if not isinstance(ignore_errors, bool):
+            raise _types.InvalidDefinition(
+                "The ignore_errors parameter must be a boolean for task "
+                f"{name}, got {ignore_errors}")
+
+        register = top_level.pop('register', None)
+        if register is not None and not isinstance(register, str):
+            raise _types.InvalidDefinition(
+                "The register parameter must be a string "
+                f"for task {name}, got {register}")
+
+        display_name = top_level.pop('name', None)
+        if display_name is not None and not isinstance(display_name, str):
+            raise _types.InvalidDefinition(
+                "The name parameter must be a string "
+                f"for task {name}, got {display_name}")
+
+        return cls(engine, params, display_name or name,
+                   when, ignore_errors, register)
 
     def validate(
         self,
@@ -217,88 +267,3 @@ class Task(metaclass=abc.ABCMeta):
 
         :returns: The value stored as a result in ``register`` is set.
         """
-
-
-class Block(Task):
-    """Grouping of tasks."""
-
-    required_params = {"tasks": list}
-
-    singleton_param = "tasks"
-
-    def validate(
-        self,
-        params: _types.ParamsType
-    ) -> typing.Dict[str, typing.Any]:
-        tasks = super().validate(params)["tasks"]
-        tasks = [self.engine._load_task(task) for task in tasks]
-        return {"tasks": tasks}
-
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
-    ) -> None:
-        for task in params["tasks"]:
-            task(context)
-
-
-class Fail(Task):
-    """Fail the execution."""
-
-    required_params = {'msg': str}
-
-    singleton_param = 'msg'
-
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
-    ) -> None:
-        raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
-
-
-class Log(Task):
-    """Log something."""
-
-    optional_params = {
-        key: str for key in ("debug", "info", "warning", "error")}
-
-    allow_empty = False
-
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: '_engine.Context'
-    ) -> None:
-        for key, value in params.items():
-            getattr(self.engine.logger, key)(value)
-
-
-class Return(Task):
-    """Return a value to the caller."""
-
-    optional_params = {'result': None}
-
-    singleton_param = 'result'
-
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
-    ) -> None:
-        raise _types.FinishScript(params.get('result'))
-
-
-class Vars(Task):
-    """Set some variables."""
-
-    free_form = True
-
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: '_engine.Context'
-    ) -> None:
-        for key, value in params.items():
-            context[key] = value
