@@ -94,9 +94,6 @@ class Script:
                 raise _types.ExecutionFailed(msg)
 
 
-_KNOWN_PARAMETERS = frozenset(['name', 'when', 'ignore_errors', 'register'])
-
-
 class Engine:
     """Data processing engine."""
 
@@ -112,7 +109,7 @@ class Engine:
             is created.
         :raises: ValueError on conflicting tasks.
         """
-        conflict = set(tasks).intersection(_KNOWN_PARAMETERS)
+        conflict = set(tasks).intersection(_task.Task._KNOWN_PARAMETERS)
         if conflict:
             raise ValueError('Tasks %s conflict with built-in parameters'
                              % ', '.join(conflict))
@@ -135,7 +132,7 @@ class Engine:
         :param context: An application-specific context object.
         :return: The outcome of the script or `None`
         """
-        Script(self, source)(context)
+        return Script(self, source)(context)
 
     def _load_task(
         self,
@@ -149,8 +146,7 @@ class Engine:
         matching = set(definition).intersection(self.tasks)
         if not matching:
             raise _types.UnknownTask(
-                "Task defined by one of %s is not known"
-                % ','.join(definition))
+                "Task defined by %s is not known" % ','.join(definition))
         elif len(matching) > 1:
             raise _types.InvalidDefinition("Item with keys %s is ambiguous"
                                            % ','.join(matching))

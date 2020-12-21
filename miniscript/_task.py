@@ -76,6 +76,9 @@ class Task(metaclass=abc.ABCMeta):
     allow_empty: bool = True
     """If no parameters are required, whether to allow empty input."""
 
+    _KNOWN_PARAMETERS = frozenset(
+        ['name', 'when', 'ignore_errors', 'register'])
+
     def __init__(
         self,
         engine: '_engine.Engine',
@@ -109,7 +112,10 @@ class Task(metaclass=abc.ABCMeta):
     ) -> 'Task':
         """Load a task from its definition."""
         params = definition[name]
-        if not isinstance(params, (list, dict)):
+
+        if params is None:
+            params = {}
+        elif not isinstance(params, (list, dict)):
             raise _types.InvalidDefinition(
                 f"Parameters for task {name} must be a "
                 f"list or an object, got {params}")

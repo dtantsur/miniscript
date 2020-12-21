@@ -10,20 +10,135 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import logging
+import typing
 import unittest
+from unittest import mock
 
-from .. import _engine
-from .. import _task
+import miniscript
+from miniscript import _types
 
 
-class TestTask(_task.Task):
-    pass
+class TestTask(miniscript.Task):
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        context["answer"] = 42
+
+
+class FinishTask(miniscript.Task):
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        raise _types.FinishScript(42)
+
+
+class FailTask(miniscript.Task):
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        raise RuntimeError("I'm tired")
+
+
+class FailTask2(miniscript.Task):
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        raise miniscript.ExecutionFailed("I'm tired")
 
 
 class EngineTestCase(unittest.TestCase):
 
+    def setUp(self):
+        super().setUp()
+        self.engine = miniscript.Engine({"test": TestTask,
+                                         "finish": FinishTask,
+                                         "fail": FailTask,
+                                         "fail2": FailTask2})
+
+    def test_logger(self):
+        self.assertIsInstance(self.engine.logger, logging.Logger)
+        logger = logging.getLogger(__name__)
+        engine = miniscript.Engine({}, logger=logger)
+        self.assertIs(logger, engine.logger)
+
     def test_forbidden_names(self):
-        for name in _engine._KNOWN_PARAMETERS:
+        for name in miniscript.Task._KNOWN_PARAMETERS:
             with self.subTest(name=name):
-                self.assertRaises(ValueError, _engine.Engine,
+                self.assertRaises(ValueError, miniscript.Engine,
                                   {name: TestTask})
+
+    def test_tasks_required(self):
+        self.assertRaisesRegex(miniscript.InvalidScript,
+                               "task is required",
+                               self.engine.execute, [])
+
+    def test_tasks_invalid_type(self):
+        self.assertRaisesRegex(miniscript.InvalidScript,
+                               "must be a list, got 42",
+                               self.engine.execute, {"tasks": 42})
+
+    def test_tasks_extra_options(self):
+        self.assertRaisesRegex(miniscript.InvalidScript,
+                               "Only tasks .*, got foo",
+                               self.engine.execute,
+                               {"tasks": [{"test": None}], "foo": 42})
+
+    def test_tasks_unknown_task(self):
+        self.assertRaises(miniscript.UnknownTask,
+                          self.engine.execute,
+                          [{"test": None}, {"foo": None}])
+
+    def test_tasks_ambiguous(self):
+        self.assertRaises(miniscript.InvalidDefinition,
+                          self.engine.execute,
+                          [{"test": None, "finish": None}])
+
+    @mock.patch.object(TestTask, 'execute', autospec=True)
+    def test_execute(self, mock_execute):
+        result = self.engine.execute({"tasks": [{"test": None}]})
+        self.assertIsNone(result)
+        mock_execute.assert_called_once_with(mock.ANY, {}, mock.ANY)
+
+    @mock.patch.object(TestTask, 'execute', autospec=True)
+    def test_execute_list(self, mock_execute):
+        result = self.engine.execute([{"test": None}])
+        self.assertIsNone(result)
+        mock_execute.assert_called_once_with(mock.ANY, {}, mock.ANY)
+
+    def test_execute_context(self):
+        context = miniscript.Context()
+        self.engine.execute([{"test": None}], context)
+        self.assertEqual(42, context["answer"])
+
+    def test_execute_finish(self):
+        result = self.engine.execute([{"finish": None}])
+        self.assertEqual(42, result)
+
+    def test_execute_fail(self):
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "fail.*I'm tired",
+                               self.engine.execute, [{"fail": None}])
+
+    def test_execute_fail2(self):
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "^I'm tired$",
+                               self.engine.execute, [{"fail2": None}])
+
+    def test__evaluate(self):
+        context = miniscript.Context(answer=42)
+        result = self.engine._evaluate("answer is {{answer}}", context)
+        self.assertEqual("answer is 42", result)
+
+    def test__evaluate_with_quotes(self):
+        context = miniscript.Context(answer='"42"!')
+        result = self.engine._evaluate("answer is {{answer}}", context)
+        self.assertEqual('answer is "42"!', result)
