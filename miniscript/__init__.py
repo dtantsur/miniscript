@@ -11,9 +11,9 @@
 # under the License.
 
 from . import tasks
-from ._engine import Context
+from ._context import Context
+from ._context import Environment
 from ._engine import Engine
-from ._engine import Environment
 from ._engine import Script
 from ._task import Result
 from ._task import Task
@@ -27,7 +27,8 @@ from ._types import UnknownTask
 
 __all__ = [
     'tasks',
-    'Context', 'Engine', 'Environment', 'Script',
+    'Context', 'Environment',
+    'Engine', 'Script',
     'Task', 'Result',
     'Error', 'ExecutionFailed', 'InvalidDefinition', 'InvalidScript',
     'SourceType', 'UnknownTask',

@@ -13,19 +13,10 @@
 import logging
 import typing
 
-from jinja2 import nativetypes  # type: ignore
-from jinja2 import sandbox  # type: ignore
-
+from . import _context
 from . import _task
 from . import _types
 from . import tasks
-
-
-class Environment(sandbox.Environment):  # type: ignore
-    """A templating environment."""
-
-    code_generator_class = nativetypes.NativeCodeGenerator
-    template_class = nativetypes.NativeTemplate
 
 
 _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
@@ -35,12 +26,6 @@ _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
     "return": tasks.Return,
     "vars": tasks.Vars,
 }
-
-
-class Context(dict):
-    """A context of an execution."""
-
-    __slots__ = ()
 
 
 class Script:
@@ -72,10 +57,13 @@ class Script:
 
         self.tasks = [engine._load_task(task) for task in tasks]
 
-    def __call__(self, context: typing.Optional[Context] = None) -> typing.Any:
+    def __call__(
+        self,
+        context: typing.Optional[_context.Context] = None,
+    ) -> typing.Any:
         """Execute the script."""
         if context is None:
-            context = Context()
+            context = _context.Context(self.engine)
 
         for item in self.tasks:
             self.engine.logger.debug("Execution task %s", item.name)
@@ -119,12 +107,12 @@ class Engine:
         if logger is None:
             logger = logging.getLogger('miniscript')
         self.logger = logger
-        self.environment = Environment()
+        self.environment = _context.Environment()
 
     def execute(
         self,
         source: _types.SourceType,
-        context: typing.Optional[Context] = None,
+        context: typing.Optional[_context.Context] = None,
     ) -> typing.Any:
         """Execute a script.
 
@@ -154,7 +142,3 @@ class Engine:
         name = matching.pop()
         task_class = self.tasks[name]
         return task_class.load(name, definition, self)
-
-    def _evaluate(self, expr: str, context: Context) -> typing.Any:
-        """Evaluate an expression."""
-        return self.environment.from_string(expr, context).render()

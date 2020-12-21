@@ -16,6 +16,7 @@ import typing
 from . import _types
 
 if typing.TYPE_CHECKING:  # pragma: no cover
+    from . import _context
     from . import _engine
 
 
@@ -48,9 +49,9 @@ class When:
         self.definition = definition
         self.engine = engine
 
-    def __call__(self, context: '_engine.Context') -> bool:
+    def __call__(self, context: '_context.Context') -> bool:
         """Check the condition."""
-        return all(self.engine._evaluate(expr, context)
+        return all(self.engine.environment.evaluate(expr, context)
                    for expr in self.definition)
 
 
@@ -211,29 +212,14 @@ class Task(metaclass=abc.ABCMeta):
 
         return result
 
-    def _evaluate_params(self, params, context: '_engine.Context'):
-        if isinstance(params, dict):
-            result = {}
-            for key, value in params.items():
-                if isinstance(key, str):
-                    key = self.engine._evaluate(key, context)
-                value = self._evaluate_params(value, context)
-                result[key] = value
-            return result
-        elif isinstance(params, list):
-            return [self._evaluate_params(item, context) for item in params]
-        elif isinstance(params, str):
-            return self.engine._evaluate(params, context)
-        else:
-            return params
-
-    def __call__(self, context: '_engine.Context') -> None:
+    def __call__(self, context: '_context.Context') -> None:
         """Check conditions and execute the task in the context."""
         if self.when is not None and not self.when(context):
             self.engine.logger.debug("Task %s is skipped", self.name)
 
         try:
-            params = self._evaluate_params(self.params, context)
+            params = self.engine.environment.evaluate_recursive(
+                self.params, context)
         except Exception as exc:
             raise _types.ExecutionFailed(
                 f"Failed to evaluate parameters for {self.name}. "
@@ -258,7 +244,7 @@ class Task(metaclass=abc.ABCMeta):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
+        context: '_context.Context',
     ) -> typing.Any:
         """Execute the task.
 

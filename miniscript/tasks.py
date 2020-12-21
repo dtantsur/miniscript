@@ -18,7 +18,7 @@ from . import _task
 from . import _types
 
 if typing.TYPE_CHECKING:
-    from . import _engine
+    from . import _context
 
 
 class Block(_task.Task):
@@ -39,7 +39,7 @@ class Block(_task.Task):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
+        context: '_context.Context',
     ) -> None:
         for task in params["tasks"]:
             task(context)
@@ -55,7 +55,7 @@ class Fail(_task.Task):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
+        context: '_context.Context',
     ) -> None:
         raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
 
@@ -71,7 +71,7 @@ class Log(_task.Task):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context'
+        context: '_context.Context'
     ) -> None:
         for key, value in params.items():
             getattr(self.engine.logger, key)(value)
@@ -87,7 +87,7 @@ class Return(_task.Task):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context',
+        context: '_context.Context',
     ) -> None:
         raise _types.FinishScript(params.get('result'))
 
@@ -100,7 +100,7 @@ class Vars(_task.Task):
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
-        context: '_engine.Context'
+        context: '_context.Context'
     ) -> None:
         for key, value in params.items():
             context[key] = value

@@ -115,7 +115,7 @@ class EngineTestCase(unittest.TestCase):
         mock_execute.assert_called_once_with(mock.ANY, {}, mock.ANY)
 
     def test_execute_context(self):
-        context = miniscript.Context()
+        context = miniscript.Context(self.engine)
         self.engine.execute([{"test": None}], context)
         self.assertEqual(42, context["answer"])
 
@@ -132,13 +132,3 @@ class EngineTestCase(unittest.TestCase):
         self.assertRaisesRegex(miniscript.ExecutionFailed,
                                "^I'm tired$",
                                self.engine.execute, [{"fail2": None}])
-
-    def test__evaluate(self):
-        context = miniscript.Context(answer=42)
-        result = self.engine._evaluate("answer is {{answer}}", context)
-        self.assertEqual("answer is 42", result)
-
-    def test__evaluate_with_quotes(self):
-        context = miniscript.Context(answer='"42"!')
-        result = self.engine._evaluate("answer is {{answer}}", context)
-        self.assertEqual('answer is "42"!', result)
