@@ -91,18 +91,18 @@ class Action(metaclass=abc.ABCMeta):
                                "a required or an optional parameter")
 
         self.engine = engine
-        self._params = params
         self.name = name
         self.when = when
         self.ignore_errors = ignore_errors
         self.register = register
         self._known = set(self.required_params).union(self.optional_params)
-        self.validate()
+        self.params = self.validate(params)
 
-    def validate(self) -> typing.Dict[str, typing.Any]:
+    def validate(
+        self,
+        params: _types.ParamsType
+    ) -> typing.Dict[str, typing.Any]:
         """Validate the passed parameters."""
-        params = self._params
-
         if params is None:
             params = {}
         elif not isinstance(params, dict):
@@ -164,12 +164,33 @@ class Action(metaclass=abc.ABCMeta):
 
         return result
 
+    def _evaluate_params(self, params, context: '_engine.Context'):
+        if isinstance(params, dict):
+            result = {}
+            for key, value in params.items():
+                if isinstance(key, str):
+                    key = self.engine._evaluate(key, context)
+                value = self._evaluate_params(value, context)
+                result[key] = value
+            return result
+        elif isinstance(params, list):
+            return [self._evaluate_params(item, context) for item in params]
+        elif isinstance(params, str):
+            return self.engine._evaluate(params, context)
+        else:
+            return params
+
     def __call__(self, context: '_engine.Context') -> None:
         """Check conditions and execute the action in the context."""
         if self.when is not None and not self.when(context):
             self.engine.logger.debug("Action %s is skipped", self.name)
 
-        params = self.validate()
+        try:
+            params = self._evaluate_params(self.params, context)
+        except Exception as exc:
+            raise _types.ExecutionFailed(
+                f"Failed to evaluate parameters for {self.name}. "
+                f"{exc.__class__.__name__}: {exc}")
 
         try:
             value = self.execute(params, context)
@@ -179,8 +200,6 @@ class Action(metaclass=abc.ABCMeta):
                                            self.name, exc)
                 result = Result(None, f"{exc.__class__.__name__}: {exc}")
             else:
-                self.engine.logger.error("Action %s failed: %s",
-                                         self.name, exc)
                 raise
         else:
             result = Result(value)
@@ -207,8 +226,11 @@ class Block(Action):
 
     singleton_param = "tasks"
 
-    def validate(self) -> typing.Dict[str, typing.Any]:
-        tasks = super().validate()["tasks"]
+    def validate(
+        self,
+        params: _types.ParamsType
+    ) -> typing.Dict[str, typing.Any]:
+        tasks = super().validate(params)["tasks"]
         tasks = [self.engine._load_action(task) for task in tasks]
         return {"tasks": tasks}
 
