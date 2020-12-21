@@ -37,6 +37,10 @@ class Error(Exception):
     """Base class for all errors."""
 
 
+class ExecutionFailed(Error, RuntimeError):
+    """Execution of an action failed."""
+
+
 class InvalidScript(Error, TypeError):
     """The script definition is invalid."""
 
@@ -47,3 +51,10 @@ class InvalidDefinition(Error, ValueError):
 
 class UnknownAction(InvalidDefinition):
     """An action is not known."""
+
+
+class FinishScript(BaseException):
+    """Abort the script."""
+
+    def __init__(self, result: typing.Any):
+        self.result = result

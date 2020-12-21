@@ -29,7 +29,9 @@ class Environment(sandbox.Environment):  # type: ignore
 
 _BUILTINS: typing.Dict[str, typing.Type[_actions.Action]] = {
     "block": _actions.Block,
+    "fail": _actions.Fail,
     "log": _actions.Log,
+    "return": _actions.Return,
     "vars": _actions.Vars,
 }
 
@@ -70,13 +72,21 @@ class Script:
 
         self.tasks = [engine._load_action(task) for task in tasks]
 
-    def __call__(self, context: typing.Optional[Context] = None) -> None:
+    def __call__(self, context: typing.Optional[Context] = None) -> typing.Any:
         """Execute the script."""
         if context is None:
             context = Context()
 
         for item in self.tasks:
-            item(context)
+            try:
+                item(context)
+            except _types.FinishScript as result:
+                return result.result
+            except _types.ExecutionFailed:
+                raise
+            except Exception as exc:
+                raise _types.ExecutionFailed(
+                    f"{exc.__class__.__name__} in {item.name}: {exc}")
 
 
 _KNOWN_PARAMETERS = frozenset(['name', 'when', 'ignore_errors', 'register'])
@@ -109,12 +119,12 @@ class Engine:
         self,
         source: typing.Union[typing.List[_types.DictType], _types.DictType],
         context: typing.Optional[Context] = None,
-    ) -> None:
+    ) -> typing.Any:
         """Execute a script.
 
         :param source: Script source code in JSON format.
         :param context: An application-specific context object.
-        :return: A `Script` object for execution.
+        :return: The outcome of the script or `None`
         """
         self.prepare(source)(context)
 

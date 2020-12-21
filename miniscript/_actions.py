@@ -55,14 +55,14 @@ class When:
 class Action(metaclass=abc.ABCMeta):
     """An abstract base class for an action."""
 
-    required_params: typing.Dict[str, typing.Type] = {}
+    required_params: typing.Dict[str, typing.Optional[typing.Type]] = {}
     """A mapping with required parameters."""
 
-    optional_params: typing.Dict[str, typing.Type] = {}
+    optional_params: typing.Dict[str, typing.Optional[typing.Type]] = {}
     """A mapping with optional parameters."""
 
-    list_param: typing.Optional[str] = None
-    """A name for the parameter to store if the input is a list."""
+    singleton_param: typing.Optional[str] = None
+    """A name for the parameter to store if the input is not an object."""
 
     free_form: bool = False
     """Whether this action accepts any arguments.
@@ -83,12 +83,12 @@ class Action(metaclass=abc.ABCMeta):
         ignore_errors: bool = False,
         register: typing.Optional[str] = None,
     ):
-        if (self.list_param is not None
-                and self.list_param not in self.required_params
-                and self.list_param not in self.optional_params
+        if (self.singleton_param is not None
+                and self.singleton_param not in self.required_params
+                and self.singleton_param not in self.optional_params
                 and not self.free_form):
-            raise RuntimeError("List parameters must be either a required or "
-                               "an optional parameter")
+            raise RuntimeError("The singleton parameter must be either "
+                               "a required or an optional parameter")
 
         self.engine = engine
         self._params = params
@@ -103,13 +103,13 @@ class Action(metaclass=abc.ABCMeta):
         """Validate the passed parameters."""
         params = self._params
 
-        if isinstance(params, list):
-            if self.list_param is None:
-                raise _types.InvalidDefinition(
-                    f"Action {self.name} does not accept a list")
-            params = {self.list_param: params}
-        elif params is None:
+        if params is None:
             params = {}
+        elif not isinstance(params, dict):
+            if self.singleton_param is None:
+                raise _types.InvalidDefinition(
+                    f"Action {self.name} accepts an object, not {params}")
+            params = {self.singleton_param: params}
 
         unknown = set(params).difference(self._known)
         if not self.free_form and unknown:
@@ -125,6 +125,10 @@ class Action(metaclass=abc.ABCMeta):
             except KeyError:
                 missing.append(name)
             else:
+                if type_ is None:
+                    result[name] = value
+                    continue
+
                 try:
                     result[name] = type_(value)
                 except (TypeError, ValueError) as exc:
@@ -141,6 +145,10 @@ class Action(metaclass=abc.ABCMeta):
             try:
                 value = params[name]
             except KeyError:
+                continue
+
+            if type_ is None:
+                result[name] = value
                 continue
 
             try:
@@ -196,7 +204,8 @@ class Block(Action):
     """Grouping of actions."""
 
     required_params = {"tasks": list}
-    list_param = "tasks"
+
+    singleton_param = "tasks"
 
     def validate(self) -> _types.DictType:
         tasks = super().validate()["tasks"]
@@ -210,6 +219,21 @@ class Block(Action):
     ) -> None:
         for task in params["tasks"]:
             task(context)
+
+
+class Fail(Action):
+    """Fail the execution."""
+
+    required_params = {'msg': str}
+
+    singleton_param = 'msg'
+
+    def execute(
+        self,
+        params: _types.DictType,
+        context: '_engine.Context',
+    ) -> None:
+        raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
 
 
 class Log(Action):
@@ -227,6 +251,21 @@ class Log(Action):
     ) -> None:
         for key, value in params.items():
             getattr(self.engine.logger, key)(value)
+
+
+class Return(Action):
+    """Return a value to the caller."""
+
+    optional_params = {'result': None}
+
+    singleton_param = 'result'
+
+    def execute(
+        self,
+        params: _types.DictType,
+        context: '_engine.Context',
+    ) -> None:
+        raise _types.FinishScript(params.get('result'))
 
 
 class Vars(Action):
