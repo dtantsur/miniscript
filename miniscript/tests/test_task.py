@@ -10,18 +10,82 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import typing
 import unittest
 
-from .. import _engine
-from .. import _task
+import miniscript
 
 
-class TestTask(_task.Task):
-    pass
+class TestTask(miniscript.Task):
+    required_params = {"object": None}
+    optional_params = {"message": str, "number": int}
+
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        pass
 
 
-class TaskTestCase(unittest.TestCase):
+class SingletonTask(miniscript.Task):
+    optional_params = {"message": str}
+    singleton_param = "message"
+
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        pass
+
+
+class TaskLoadTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.engine = _engine.Engine({'test': TestTask})
+        self.engine = miniscript.Engine({'test': TestTask,
+                                         'singleton': SingletonTask})
+
+    def test_required(self):
+        defn = {"test": {"object": {"answer": [42]}}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertEqual({"object": {"answer": [42]}}, task.params)
+
+    def test_missing_required(self):
+        defn = {"test": {"number": 42}}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "object are required",
+                               TestTask.load,
+                               "test", defn, self.engine)
+
+    def test_wrong_params(self):
+        for item in [42, True, object(), "banana!"]:
+            defn = {"test": item}
+            with self.subTest(params=item):
+                self.assertRaisesRegex(miniscript.InvalidDefinition,
+                                       f"accepts an object, not {item}",
+                                       TestTask.load,
+                                       "test", defn, self.engine)
+
+    def test_wrong_keys(self):
+        defn = {"test": {42: "answer"}}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "must have string keys",
+                               TestTask.load,
+                               "test", defn, self.engine)
+
+    def test_wrong_top_level(self):
+        for key in ["ignore_errors", "register", "name"]:
+            defn = {"test": {}, key: 42}
+            with self.subTest(top_level=key):
+                self.assertRaisesRegex(miniscript.InvalidDefinition,
+                                       f"{key}.*must be a",
+                                       TestTask.load,
+                                       "test", defn, self.engine)
+
+    def test_optional_with_casting(self):
+        defn = {"test": {"object": {"answer": [42]}, "number": "42"}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertEqual({"object": {"answer": [42]}, "number": 42},
+                         task.params)

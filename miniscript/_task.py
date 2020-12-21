@@ -15,7 +15,7 @@ import typing
 
 from . import _types
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from . import _engine
 
 
@@ -112,23 +112,9 @@ class Task(metaclass=abc.ABCMeta):
     ) -> 'Task':
         """Load a task from its definition."""
         params = definition[name]
-
-        if params is None:
-            params = {}
-        elif not isinstance(params, (list, dict)):
-            raise _types.InvalidDefinition(
-                f"Parameters for task {name} must be a "
-                f"list or an object, got {params}")
-        elif isinstance(params, dict) and not all(isinstance(key, str)
-                                                  for key in params):
-            raise _types.InvalidDefinition(
-                f"Parameters for task {name} must have string keys")
-
-        # We have checked compliance above
-        params = typing.cast(_types.ParamsType, params)
-
         top_level = {key: value for key, value in definition.items()
                      if key != name}
+
         when = top_level.pop('when', None)
         if when is not None:
             when = When(engine, when)
@@ -156,11 +142,15 @@ class Task(metaclass=abc.ABCMeta):
 
     def validate(
         self,
-        params: _types.ParamsType
+        params: typing.Any,
     ) -> typing.Dict[str, typing.Any]:
         """Validate the passed parameters."""
         if params is None:
             params = {}
+        elif isinstance(params, dict) and not all(isinstance(key, str)
+                                                  for key in params):
+            raise _types.InvalidDefinition(
+                f"Parameters for task {self.name} must have string keys")
         elif not isinstance(params, dict):
             if self.singleton_param is None:
                 raise _types.InvalidDefinition(
@@ -169,8 +159,9 @@ class Task(metaclass=abc.ABCMeta):
 
         unknown = set(params).difference(self._known)
         if not self.free_form and unknown:
-            raise _types.InvalidDefinition("Parameters %s are not recognized"
-                                           % ', '.join(unknown))
+            raise _types.InvalidDefinition(
+                f"Parameters {', '.join(unknown)} are not recognized "
+                f"for task {self.name}")
 
         result = {}
         missing = []
@@ -194,8 +185,8 @@ class Task(metaclass=abc.ABCMeta):
 
         if missing:
             raise _types.InvalidDefinition(
-                "Parameters %s are required for task %s",
-                ','.join(missing), self.name)
+                f"Parameter(s) {', '.join(missing)} are required for "
+                f"task {self.name}")
 
         for name, type_ in self.optional_params.items():
             try:
