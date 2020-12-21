@@ -14,6 +14,7 @@ import typing
 import unittest
 
 import miniscript
+from miniscript import _task
 
 
 class TestTask(miniscript.Task):
@@ -89,3 +90,27 @@ class TaskLoadTestCase(unittest.TestCase):
         task = TestTask.load("test", defn, self.engine)
         self.assertEqual({"object": {"answer": [42]}, "number": 42},
                          task.params)
+
+
+class WhenTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.engine = miniscript.Engine({})
+        self.context = miniscript.Context(self.engine, answer=42)
+
+    def test_one(self):
+        when = _task.When(self.engine, "answer == 42")
+        self.assertTrue(when(self.context))
+        when = _task.When(self.engine, "answer is undefined")
+        self.assertFalse(when(self.context))
+        when = _task.When(self.engine, "banana is undefined")
+        self.assertTrue(when(self.context))
+
+    def test_many_true(self):
+        when = _task.When(self.engine, ["1 == 1", "answer == 42",
+                                        "answer is defined"])
+        self.assertTrue(when(self.context))
+        when = _task.When(self.engine, ["1 == 1", "answer == 0",
+                                        "answer is defined"])
+        self.assertFalse(when(self.context))

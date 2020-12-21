@@ -57,6 +57,15 @@ class Environment(sandbox.Environment):  # type: ignore
         else:
             return source
 
+    def evaluate_code(self, expr: str, context: 'Context') -> typing.Any:
+        """Evaluate something as if it was surrounded by tags."""
+        # Ansible definitely does something smarter...
+        if not expr.startswith(self.variable_start_string):
+            expr = self.variable_start_string + expr
+        if not expr.endswith(self.variable_end_string):
+            expr += self.variable_end_string
+        return self.evaluate(expr, context)
+
 
 Template.environment_class = Environment
 

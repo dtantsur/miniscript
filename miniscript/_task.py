@@ -51,7 +51,7 @@ class When:
 
     def __call__(self, context: '_context.Context') -> bool:
         """Check the condition."""
-        return all(self.engine.environment.evaluate(expr, context)
+        return all(self.engine.environment.evaluate_code(expr, context)
                    for expr in self.definition)
 
 
