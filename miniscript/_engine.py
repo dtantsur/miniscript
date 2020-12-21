@@ -34,6 +34,12 @@ _BUILTINS: typing.Dict[str, typing.Type[_actions.Action]] = {
 }
 
 
+class Context(dict):
+    """A context of an execution."""
+
+    __slots__ = ()
+
+
 class Script:
     """A prepared script."""
 
@@ -64,8 +70,11 @@ class Script:
 
         self.tasks = [engine._load_action(task) for task in tasks]
 
-    def __call__(self, context: typing.Any) -> None:
+    def __call__(self, context: typing.Optional[Context] = None) -> None:
         """Execute the script."""
+        if context is None:
+            context = Context()
+
         for item in self.tasks:
             item(context)
 
@@ -79,7 +88,6 @@ class Engine:
     def __init__(
         self,
         actions: typing.Dict[str, typing.Type[_actions.Action]],
-        namespace: typing.Optional[typing.Dict[str, typing.Any]] = None,
         logger_name: str = __name__,
     ) -> None:
         """Create a new engine.
@@ -95,18 +103,17 @@ class Engine:
         self.actions = _BUILTINS.copy()
         self.actions.update(actions)
         self.logger = logging.getLogger(logger_name)
-        self.namespace = namespace or {}
         self.environment = Environment()
 
     def execute(
         self,
         source: typing.Union[typing.List[_types.DictType], _types.DictType],
-        context: typing.Any,
+        context: typing.Optional[Context] = None,
     ) -> None:
         """Execute a script.
 
         :param source: Script source code in JSON format.
-        :param context: An application-specific object.
+        :param context: An application-specific context object.
         :return: A `Script` object for execution.
         """
         self.prepare(source)(context)
@@ -124,10 +131,6 @@ class Engine:
             source = {'tasks': source}
 
         return Script(self, source)
-
-    def set_var(self, name: str, value: typing.Any):
-        """Set a variable."""
-        self.namespace[name] = value
 
     def _load_action(self, definition: _types.DictType) -> _actions.Action:
         """Load an action from the definition.
@@ -186,6 +189,6 @@ class Engine:
         return action(self, params, display_name,
                       when, ignore_errors, register)
 
-    def _evaluate(self, expr: str, context: typing.Any) -> typing.Any:
+    def _evaluate(self, expr: str, context: Context) -> typing.Any:
         """Evaluate an expression."""
-        return self.environment.from_string(expr, self.namespace).render()
+        return self.environment.from_string(expr, context).render()

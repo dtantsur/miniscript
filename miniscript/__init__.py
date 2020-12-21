@@ -12,6 +12,7 @@
 
 from ._actions import Action
 from ._actions import Result
+from ._engine import Context
 from ._engine import Engine
 from ._engine import Environment
 from ._engine import Script
@@ -22,5 +23,5 @@ from ._types import UnknownAction
 
 
 __all__ = ['Action', 'Result',
-           'Engine', 'Environment', 'Script',
+           'Context', 'Engine', 'Environment', 'Script',
            'Error', 'InvalidDefinition', 'InvalidScript', 'UnknownAction']

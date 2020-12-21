@@ -46,7 +46,7 @@ class When:
         self.definition = definition
         self.engine = engine
 
-    def __call__(self, context: typing.Any) -> bool:
+    def __call__(self, context: '_engine.Context') -> bool:
         """Check the condition."""
         return all(self.engine._evaluate(expr, context)
                    for expr in self.definition)
@@ -156,7 +156,7 @@ class Action(metaclass=abc.ABCMeta):
 
         return result
 
-    def __call__(self, context: typing.Any) -> None:
+    def __call__(self, context: '_engine.Context') -> None:
         """Check conditions and execute the action in the context."""
         if self.when is not None and not self.when(context):
             self.engine.logger.debug("Action %s is skipped", self.name)
@@ -178,13 +178,13 @@ class Action(metaclass=abc.ABCMeta):
             result = Result(value)
 
         if self.register is not None:
-            self.engine.set_var(self.register, result)
+            context[self.register] = result
 
     @abc.abstractmethod
     def execute(
         self,
         params: _types.DictType,
-        context: typing.Any
+        context: '_engine.Context',
     ) -> _types.JsonType:
         """Execute the action.
 
@@ -203,7 +203,11 @@ class Block(Action):
         tasks = [self.engine._load_action(task) for task in tasks]
         return {"tasks": tasks}
 
-    def execute(self, params: _types.DictType, context: typing.Any) -> None:
+    def execute(
+        self,
+        params: _types.DictType,
+        context: '_engine.Context',
+    ) -> None:
         for task in params["tasks"]:
             task(context)
 
@@ -216,7 +220,11 @@ class Log(Action):
 
     allow_empty = False
 
-    def execute(self, params: _types.DictType, context: typing.Any) -> None:
+    def execute(
+        self,
+        params: _types.DictType,
+        context: '_engine.Context'
+    ) -> None:
         for key, value in params.items():
             getattr(self.engine.logger, key)(value)
 
@@ -226,6 +234,10 @@ class SetVar(Action):
 
     free_form = True
 
-    def execute(self, params: _types.DictType, context: typing.Any) -> None:
+    def execute(
+        self,
+        params: _types.DictType,
+        context: '_engine.Context'
+    ) -> None:
         for key, value in params.items():
-            self.engine.set_var(key, value)
+            context[key] = value
