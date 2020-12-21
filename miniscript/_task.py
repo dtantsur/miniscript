@@ -101,7 +101,6 @@ class Task(metaclass=abc.ABCMeta):
         self.when = when
         self.ignore_errors = ignore_errors
         self.register = register
-        self._known = set(self.required_params).union(self.optional_params)
         self.params = self.validate(params)
 
     @classmethod
@@ -158,38 +157,21 @@ class Task(metaclass=abc.ABCMeta):
                     f"Task {self.name} accepts an object, not {params}")
             params = {self.singleton_param: params}
 
-        unknown = set(params).difference(self._known)
+        known = dict(self.required_params, **self.optional_params)
+        unknown = set(params).difference(known)
         if not self.free_form and unknown:
             raise _types.InvalidDefinition(
                 f"Parameters {', '.join(unknown)} are not recognized "
                 f"for task {self.name}")
 
         result = {}
-        missing = []
-
-        for name, type_ in self.required_params.items():
-            try:
-                value = params[name]
-            except KeyError:
-                missing.append(name)
-            else:
-                if type_ is None:
-                    result[name] = value
-                    continue
-
-                try:
-                    result[name] = type_(value)
-                except (TypeError, ValueError) as exc:
-                    raise _types.InvalidDefinition(
-                        f"Invalid value for parameter {name} of task "
-                        f"{self.name}: {exc}")
-
+        missing = set(self.required_params).difference(params)
         if missing:
             raise _types.InvalidDefinition(
                 f"Parameter(s) {', '.join(missing)} are required for "
                 f"task {self.name}")
 
-        for name, type_ in self.optional_params.items():
+        for name, type_ in known.items():
             try:
                 value = params[name]
             except KeyError:

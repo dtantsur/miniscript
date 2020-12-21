@@ -30,8 +30,24 @@ class TestTask(miniscript.Task):
 
 
 class SingletonTask(miniscript.Task):
-    optional_params = {"message": str}
+    required_params = {"message": str}
     singleton_param = "message"
+
+    def execute(
+        self,
+        params: typing.Dict[str, typing.Any],
+        context: miniscript.Context,
+    ) -> typing.Any:
+        pass
+
+
+class WrongSingletonTask(SingletonTask):
+    singleton_param = "not_message"
+
+
+class OptionalTask(miniscript.Task):
+    optional_params = {"one": str, "two": int}
+    allow_empty = False
 
     def execute(
         self,
@@ -45,8 +61,13 @@ class TaskLoadTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.engine = miniscript.Engine({'test': TestTask,
-                                         'singleton': SingletonTask})
+        self.engine = miniscript.Engine({})
+
+    def test_wrong_singleton(self):
+        self.assertRaisesRegex(TypeError,
+                               "singleton parameter",
+                               WrongSingletonTask,
+                               self.engine, {}, "wrong")
 
     def test_required(self):
         defn = {"test": {"object": {"answer": [42]}}}
@@ -91,6 +112,37 @@ class TaskLoadTestCase(unittest.TestCase):
         self.assertEqual({"object": {"answer": [42]}, "number": 42},
                          task.params)
 
+    def test_conditional(self):
+        defn = {"test": {"object": {}}, "when": "1 == 1"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertEqual({"object": {}}, task.params)
+
+    def test_singleton(self):
+        defn = {"singleton": "test"}
+        task = SingletonTask.load("singleton", defn, self.engine)
+        self.assertEqual({"message": "test"}, task.params)
+
+    def test_unknown(self):
+        defn = {"test": {"object": {}, "who_am_I": None}}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "Parameter(s) who_am_I",
+                               TestTask.load,
+                               "test", defn, self.engine)
+
+    def test_invalid_value(self):
+        defn = {"test": {"object": {}, "number": "not number"}}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "Invalid value for parameter number",
+                               TestTask.load,
+                               "test", defn, self.engine)
+
+    def test_one_required(self):
+        defn = {"optional": None}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "At least one",
+                               OptionalTask.load,
+                               "optional", defn, self.engine)
+
 
 class WhenTestCase(unittest.TestCase):
 
@@ -104,7 +156,7 @@ class WhenTestCase(unittest.TestCase):
         self.assertTrue(when(self.context))
         when = _task.When(self.engine, "answer is undefined")
         self.assertFalse(when(self.context))
-        when = _task.When(self.engine, "banana is undefined")
+        when = _task.When(self.engine, "{{ banana is undefined }}")
         self.assertTrue(when(self.context))
 
     def test_many_true(self):
