@@ -78,7 +78,7 @@ class Action(metaclass=abc.ABCMeta):
         self,
         engine: '_engine.Engine',
         params: _types.ParamsType,
-        name: typing.Optional[str] = None,
+        name: str,
         when: typing.Optional[When] = None,
         ignore_errors: bool = False,
         register: typing.Optional[str] = None,

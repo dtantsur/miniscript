@@ -197,7 +197,7 @@ class Engine:
                 "The name parameter must be a string "
                 f"for action {name}, got {display_name}")
 
-        return action(self, params, display_name,
+        return action(self, params, display_name or name,
                       when, ignore_errors, register)
 
     def _evaluate(self, expr: str, context: Context) -> typing.Any:
