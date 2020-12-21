@@ -17,11 +17,14 @@ from ._engine import Engine
 from ._engine import Environment
 from ._engine import Script
 from ._types import Error
+from ._types import ExecutionFailed
 from ._types import InvalidDefinition
 from ._types import InvalidScript
+from ._types import SourceType
 from ._types import UnknownAction
 
 
 __all__ = ['Action', 'Result',
            'Context', 'Engine', 'Environment', 'Script',
-           'Error', 'InvalidDefinition', 'InvalidScript', 'UnknownAction']
+           'Error', 'ExecutionFailed', 'InvalidDefinition', 'InvalidScript',
+           'SourceType', 'UnknownAction']

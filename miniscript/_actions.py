@@ -99,7 +99,7 @@ class Action(metaclass=abc.ABCMeta):
         self._known = set(self.required_params).union(self.optional_params)
         self.validate()
 
-    def validate(self) -> _types.DictType:
+    def validate(self) -> typing.Dict[str, typing.Any]:
         """Validate the passed parameters."""
         params = self._params
 
@@ -191,9 +191,9 @@ class Action(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context',
-    ) -> _types.JsonType:
+    ) -> typing.Any:
         """Execute the action.
 
         :returns: The value stored as a result in ``register`` is set.
@@ -207,14 +207,14 @@ class Block(Action):
 
     singleton_param = "tasks"
 
-    def validate(self) -> _types.DictType:
+    def validate(self) -> typing.Dict[str, typing.Any]:
         tasks = super().validate()["tasks"]
         tasks = [self.engine._load_action(task) for task in tasks]
         return {"tasks": tasks}
 
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context',
     ) -> None:
         for task in params["tasks"]:
@@ -230,7 +230,7 @@ class Fail(Action):
 
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context',
     ) -> None:
         raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
@@ -246,7 +246,7 @@ class Log(Action):
 
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context'
     ) -> None:
         for key, value in params.items():
@@ -262,7 +262,7 @@ class Return(Action):
 
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context',
     ) -> None:
         raise _types.FinishScript(params.get('result'))
@@ -275,7 +275,7 @@ class Vars(Action):
 
     def execute(
         self,
-        params: _types.DictType,
+        params: typing.Dict[str, typing.Any],
         context: '_engine.Context'
     ) -> None:
         for key, value in params.items():

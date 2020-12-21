@@ -13,11 +13,15 @@
 import typing
 
 
-DictType = typing.Dict[str, typing.Any]
+SourceType = typing.Union[
+    typing.List[typing.Dict[str, typing.Any]],
+    typing.Dict[str, typing.Any]
+]
+"""Type of a script source."""
 
 
 JsonType = typing.Union[
-    DictType,
+    typing.Dict[str, typing.Any],
     typing.List,
     str,
     int,

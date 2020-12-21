@@ -48,13 +48,16 @@ class Script:
     def __init__(
         self,
         engine: 'Engine',
-        source: _types.DictType,
+        source: _types.SourceType,
     ) -> None:
         """Create a new script.
 
         :param engine: An `Engine`.
-        :param source: A list of actions to execute.
+        :param source: A source definition or a list of actions to execute.
         """
+        if isinstance(source, list):
+            source = {'tasks': source}
+
         self.engine = engine
         self.source = source
 
@@ -117,7 +120,7 @@ class Engine:
 
     def execute(
         self,
-        source: typing.Union[typing.List[_types.DictType], _types.DictType],
+        source: _types.SourceType,
         context: typing.Optional[Context] = None,
     ) -> typing.Any:
         """Execute a script.
@@ -126,23 +129,12 @@ class Engine:
         :param context: An application-specific context object.
         :return: The outcome of the script or `None`
         """
-        self.prepare(source)(context)
+        Script(self, source)(context)
 
-    def prepare(
+    def _load_action(
         self,
-        source: typing.Union[typing.List[_types.DictType], _types.DictType],
-    ) -> Script:
-        """Prepare a script for execution.
-
-        :param source: Script source code in JSON format.
-        :return: A `Script` object for execution.
-        """
-        if isinstance(source, list):
-            source = {'tasks': source}
-
-        return Script(self, source)
-
-    def _load_action(self, definition: _types.DictType) -> _actions.Action:
+        definition: typing.Dict[str, typing.Any],
+    ) -> _actions.Action:
         """Load an action from the definition.
 
         :param definition: JSON definition of an action.
