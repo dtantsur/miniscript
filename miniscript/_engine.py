@@ -30,7 +30,7 @@ class Environment(sandbox.Environment):  # type: ignore
 _BUILTINS: typing.Dict[str, typing.Type[_actions.Action]] = {
     "block": _actions.Block,
     "log": _actions.Log,
-    "set_var": _actions.SetVar,
+    "vars": _actions.Vars,
 }
 
 

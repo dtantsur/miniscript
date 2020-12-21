@@ -229,7 +229,7 @@ class Log(Action):
             getattr(self.engine.logger, key)(value)
 
 
-class SetVar(Action):
+class Vars(Action):
     """Set some variables."""
 
     free_form = True
