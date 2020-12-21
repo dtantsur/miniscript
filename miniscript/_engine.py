@@ -16,7 +16,7 @@ import typing
 from jinja2 import nativetypes  # type: ignore
 from jinja2 import sandbox  # type: ignore
 
-from . import _actions
+from . import _tasks
 from . import _types
 
 
@@ -27,12 +27,12 @@ class Environment(sandbox.Environment):  # type: ignore
     template_class = nativetypes.NativeTemplate
 
 
-_BUILTINS: typing.Dict[str, typing.Type[_actions.Action]] = {
-    "block": _actions.Block,
-    "fail": _actions.Fail,
-    "log": _actions.Log,
-    "return": _actions.Return,
-    "vars": _actions.Vars,
+_BUILTINS: typing.Dict[str, typing.Type[_tasks.Task]] = {
+    "block": _tasks.Block,
+    "fail": _tasks.Fail,
+    "log": _tasks.Log,
+    "return": _tasks.Return,
+    "vars": _tasks.Vars,
 }
 
 
@@ -45,15 +45,11 @@ class Context(dict):
 class Script:
     """A prepared script."""
 
-    def __init__(
-        self,
-        engine: 'Engine',
-        source: _types.SourceType,
-    ) -> None:
+    def __init__(self, engine: 'Engine', source: _types.SourceType) -> None:
         """Create a new script.
 
         :param engine: An `Engine`.
-        :param source: A source definition or a list of actions to execute.
+        :param source: A source definition or a list of tasks to execute.
         """
         if isinstance(source, list):
             source = {'tasks': source}
@@ -73,7 +69,7 @@ class Script:
                 "Only tasks are currently supported for a script, got %s"
                 % ', '.join(unknown))
 
-        self.tasks = [engine._load_action(task) for task in tasks]
+        self.tasks = [engine._load_task(task) for task in tasks]
 
     def __call__(self, context: typing.Optional[Context] = None) -> typing.Any:
         """Execute the script."""
@@ -81,7 +77,7 @@ class Script:
             context = Context()
 
         for item in self.tasks:
-            self.engine.logger.debug("Execution action %s", item.name)
+            self.engine.logger.debug("Execution task %s", item.name)
             try:
                 item(context)
             except _types.FinishScript as result:
@@ -105,23 +101,23 @@ class Engine:
 
     def __init__(
         self,
-        actions: typing.Dict[str, typing.Type[_actions.Action]],
+        tasks: typing.Dict[str, typing.Type[_tasks.Task]],
         logger: typing.Optional[logging.Logger] = None,
     ) -> None:
         """Create a new engine.
 
-        :param actions: Mapping of actions to their implementations.
+        :param tasks: Mapping of tasks to their implementations.
         :param logger: Logger to use for all logging. If None, a default one
             is created.
-        :raises: ValueError on conflicting actions.
+        :raises: ValueError on conflicting tasks.
         """
-        conflict = set(actions).intersection(_KNOWN_PARAMETERS)
+        conflict = set(tasks).intersection(_KNOWN_PARAMETERS)
         if conflict:
-            raise ValueError('Actions %s conflict with built-in parameters'
+            raise ValueError('Tasks %s conflict with built-in parameters'
                              % ', '.join(conflict))
 
-        self.actions = _BUILTINS.copy()
-        self.actions.update(actions)
+        self.tasks = _BUILTINS.copy()
+        self.tasks.update(tasks)
         if logger is None:
             logger = logging.getLogger('miniscript')
         self.logger = logger
@@ -140,35 +136,35 @@ class Engine:
         """
         Script(self, source)(context)
 
-    def _load_action(
+    def _load_task(
         self,
         definition: typing.Dict[str, typing.Any],
-    ) -> _actions.Action:
-        """Load an action from the definition.
+    ) -> _tasks.Task:
+        """Load a task from the definition.
 
-        :param definition: JSON definition of an action.
-        :return: An `Action`
+        :param definition: JSON definition of a task.
+        :return: An `Task`
         """
-        matching = set(definition).intersection(self.actions)
+        matching = set(definition).intersection(self.tasks)
         if not matching:
-            raise _types.UnknownAction(
-                "Action defined by one of %s is not known"
+            raise _types.UnknownTask(
+                "Task defined by one of %s is not known"
                 % ','.join(definition))
         elif len(matching) > 1:
             raise _types.InvalidDefinition("Item with keys %s is ambiguous"
                                            % ','.join(matching))
 
         name = matching.pop()
-        action = self.actions[name]
+        task_class = self.tasks[name]
         params = definition[name]
         if not isinstance(params, (list, dict)):
             raise _types.InvalidDefinition(
-                f"Parameters for action {name} must be a "
+                f"Parameters for task {name} must be a "
                 f"list or an object, got {params}")
         elif isinstance(params, dict) and not all(isinstance(key, str)
                                                   for key in params):
             raise _types.InvalidDefinition(
-                f"Parameters for action {name} must have string keys")
+                f"Parameters for task {name} must have string keys")
 
         # We have checked compliance above
         params = typing.cast(_types.ParamsType, params)
@@ -177,28 +173,28 @@ class Engine:
                      if key != name}
         when = top_level.pop('when', None)
         if when is not None:
-            when = _actions.When(self, when)
+            when = _tasks.When(self, when)
 
         ignore_errors = top_level.pop('ignore_errors', False)
         if not isinstance(ignore_errors, bool):
             raise _types.InvalidDefinition(
-                "The ignore_errors parameter must be a boolean for action "
+                "The ignore_errors parameter must be a boolean for task "
                 f"{name}, got {ignore_errors}")
 
         register = top_level.pop('register', None)
         if register is not None and not isinstance(register, str):
             raise _types.InvalidDefinition(
                 "The register parameter must be a string "
-                f"for action {name}, got {register}")
+                f"for task {name}, got {register}")
 
         display_name = top_level.pop('name', None)
         if display_name is not None and not isinstance(display_name, str):
             raise _types.InvalidDefinition(
                 "The name parameter must be a string "
-                f"for action {name}, got {display_name}")
+                f"for task {name}, got {display_name}")
 
-        return action(self, params, display_name or name,
-                      when, ignore_errors, register)
+        return task_class(self, params, display_name or name,
+                          when, ignore_errors, register)
 
     def _evaluate(self, expr: str, context: Context) -> typing.Any:
         """Evaluate an expression."""

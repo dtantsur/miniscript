@@ -12,11 +12,11 @@
 
 import unittest
 
-from .. import _actions
 from .. import _engine
+from .. import _tasks
 
 
-class TestAction(_actions.Action):
+class TestTask(_tasks.Task):
     pass
 
 
@@ -26,4 +26,4 @@ class EngineTestCase(unittest.TestCase):
         for name in _engine._KNOWN_PARAMETERS:
             with self.subTest(name=name):
                 self.assertRaises(ValueError, _engine.Engine,
-                                  {name: TestAction})
+                                  {name: TestTask})

@@ -12,16 +12,16 @@
 
 import unittest
 
-from .. import _actions
 from .. import _engine
+from .. import _tasks
 
 
-class TestAction(_actions.Action):
+class TestTask(_tasks.Task):
     pass
 
 
-class ActionTestCase(unittest.TestCase):
+class TaskTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.engine = _engine.Engine({'test': TestAction})
+        self.engine = _engine.Engine({'test': TestTask})

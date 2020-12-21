@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
 
 
 class Result:
-    """A result of an action."""
+    """A result of a task."""
 
     def __init__(
         self,
@@ -52,8 +52,8 @@ class When:
                    for expr in self.definition)
 
 
-class Action(metaclass=abc.ABCMeta):
-    """An abstract base class for an action."""
+class Task(metaclass=abc.ABCMeta):
+    """An abstract base class for a task."""
 
     required_params: typing.Dict[str, typing.Optional[typing.Type]] = {}
     """A mapping with required parameters."""
@@ -65,7 +65,7 @@ class Action(metaclass=abc.ABCMeta):
     """A name for the parameter to store if the input is not an object."""
 
     free_form: bool = False
-    """Whether this action accepts any arguments.
+    """Whether this task accepts any arguments.
 
     Validation for known arguments is still run, and required parameters are
     still required.
@@ -87,8 +87,8 @@ class Action(metaclass=abc.ABCMeta):
                 and self.singleton_param not in self.required_params
                 and self.singleton_param not in self.optional_params
                 and not self.free_form):
-            raise RuntimeError("The singleton parameter must be either "
-                               "a required or an optional parameter")
+            raise TypeError("The singleton parameter must be either "
+                            "a required or an optional parameter")
 
         self.engine = engine
         self.name = name
@@ -108,7 +108,7 @@ class Action(metaclass=abc.ABCMeta):
         elif not isinstance(params, dict):
             if self.singleton_param is None:
                 raise _types.InvalidDefinition(
-                    f"Action {self.name} accepts an object, not {params}")
+                    f"Task {self.name} accepts an object, not {params}")
             params = {self.singleton_param: params}
 
         unknown = set(params).difference(self._known)
@@ -133,12 +133,12 @@ class Action(metaclass=abc.ABCMeta):
                     result[name] = type_(value)
                 except (TypeError, ValueError) as exc:
                     raise _types.InvalidDefinition(
-                        f"Invalid value for parameter {name} of action "
+                        f"Invalid value for parameter {name} of task "
                         f"{self.name}: {exc}")
 
         if missing:
             raise _types.InvalidDefinition(
-                "Parameters %s are required for action %s",
+                "Parameters %s are required for task %s",
                 ','.join(missing), self.name)
 
         for name, type_ in self.optional_params.items():
@@ -155,7 +155,7 @@ class Action(metaclass=abc.ABCMeta):
                 result[name] = type_(value)
             except (TypeError, ValueError) as exc:
                 raise _types.InvalidDefinition(
-                    f"Invalid value for parameter {name} of action "
+                    f"Invalid value for parameter {name} of task "
                     f"{self.name}: {exc}")
 
         if not result and not self.allow_empty:
@@ -181,9 +181,9 @@ class Action(metaclass=abc.ABCMeta):
             return params
 
     def __call__(self, context: '_engine.Context') -> None:
-        """Check conditions and execute the action in the context."""
+        """Check conditions and execute the task in the context."""
         if self.when is not None and not self.when(context):
-            self.engine.logger.debug("Action %s is skipped", self.name)
+            self.engine.logger.debug("Task %s is skipped", self.name)
 
         try:
             params = self._evaluate_params(self.params, context)
@@ -196,7 +196,7 @@ class Action(metaclass=abc.ABCMeta):
             value = self.execute(params, context)
         except Exception as exc:
             if self.ignore_errors:
-                self.engine.logger.warning("Action %s failed: %s (ignoring)",
+                self.engine.logger.warning("Task %s failed: %s (ignoring)",
                                            self.name, exc)
                 result = Result(None, f"{exc.__class__.__name__}: {exc}")
             else:
@@ -213,14 +213,14 @@ class Action(metaclass=abc.ABCMeta):
         params: typing.Dict[str, typing.Any],
         context: '_engine.Context',
     ) -> typing.Any:
-        """Execute the action.
+        """Execute the task.
 
         :returns: The value stored as a result in ``register`` is set.
         """
 
 
-class Block(Action):
-    """Grouping of actions."""
+class Block(Task):
+    """Grouping of tasks."""
 
     required_params = {"tasks": list}
 
@@ -231,7 +231,7 @@ class Block(Action):
         params: _types.ParamsType
     ) -> typing.Dict[str, typing.Any]:
         tasks = super().validate(params)["tasks"]
-        tasks = [self.engine._load_action(task) for task in tasks]
+        tasks = [self.engine._load_task(task) for task in tasks]
         return {"tasks": tasks}
 
     def execute(
@@ -243,7 +243,7 @@ class Block(Action):
             task(context)
 
 
-class Fail(Action):
+class Fail(Task):
     """Fail the execution."""
 
     required_params = {'msg': str}
@@ -258,7 +258,7 @@ class Fail(Action):
         raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
 
 
-class Log(Action):
+class Log(Task):
     """Log something."""
 
     optional_params = {
@@ -275,7 +275,7 @@ class Log(Action):
             getattr(self.engine.logger, key)(value)
 
 
-class Return(Action):
+class Return(Task):
     """Return a value to the caller."""
 
     optional_params = {'result': None}
@@ -290,7 +290,7 @@ class Return(Action):
         raise _types.FinishScript(params.get('result'))
 
 
-class Vars(Action):
+class Vars(Task):
     """Set some variables."""
 
     free_form = True

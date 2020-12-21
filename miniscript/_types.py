@@ -42,7 +42,7 @@ class Error(Exception):
 
 
 class ExecutionFailed(Error, RuntimeError):
-    """Execution of an action failed."""
+    """Execution of a task failed."""
 
 
 class InvalidScript(Error, TypeError):
@@ -50,11 +50,11 @@ class InvalidScript(Error, TypeError):
 
 
 class InvalidDefinition(Error, ValueError):
-    """A definition of an action is invalid."""
+    """A definition of a task is invalid."""
 
 
-class UnknownAction(InvalidDefinition):
-    """An action is not known."""
+class UnknownTask(InvalidDefinition):
+    """An task is not known."""
 
 
 class FinishScript(BaseException):

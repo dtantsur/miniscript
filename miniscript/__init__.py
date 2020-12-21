@@ -10,21 +10,23 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from ._actions import Action
-from ._actions import Result
 from ._engine import Context
 from ._engine import Engine
 from ._engine import Environment
 from ._engine import Script
+from ._tasks import Result
+from ._tasks import Task
 from ._types import Error
 from ._types import ExecutionFailed
 from ._types import InvalidDefinition
 from ._types import InvalidScript
 from ._types import SourceType
-from ._types import UnknownAction
+from ._types import UnknownTask
 
 
-__all__ = ['Action', 'Result',
-           'Context', 'Engine', 'Environment', 'Script',
-           'Error', 'ExecutionFailed', 'InvalidDefinition', 'InvalidScript',
-           'SourceType', 'UnknownAction']
+__all__ = [
+    'Context', 'Engine', 'Environment', 'Script',
+    'Task', 'Result',
+    'Error', 'ExecutionFailed', 'InvalidDefinition', 'InvalidScript',
+    'SourceType', 'UnknownTask'
+]
