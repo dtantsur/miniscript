@@ -81,15 +81,20 @@ class Script:
             context = Context()
 
         for item in self.tasks:
+            self.engine.logger.debug("Execution action %s", item.name)
             try:
                 item(context)
             except _types.FinishScript as result:
+                self.engine.logger.info("Execution finished with result %s",
+                                        result.result)
                 return result.result
-            except _types.ExecutionFailed:
+            except _types.ExecutionFailed as exc:
+                self.engine.logger.error("Execution failed: %s", exc)
                 raise
             except Exception as exc:
-                raise _types.ExecutionFailed(
-                    f"{exc.__class__.__name__} in {item.name}: {exc}")
+                msg = f"{exc.__class__.__name__} in {item.name}: {exc}"
+                self.engine.logger.error("Execution failed: %s", msg)
+                raise _types.ExecutionFailed(msg)
 
 
 _KNOWN_PARAMETERS = frozenset(['name', 'when', 'ignore_errors', 'register'])
@@ -101,11 +106,13 @@ class Engine:
     def __init__(
         self,
         actions: typing.Dict[str, typing.Type[_actions.Action]],
-        logger_name: str = __name__,
+        logger: typing.Optional[logging.Logger] = None,
     ) -> None:
         """Create a new engine.
 
         :param actions: Mapping of actions to their implementations.
+        :param logger: Logger to use for all logging. If None, a default one
+            is created.
         :raises: ValueError on conflicting actions.
         """
         conflict = set(actions).intersection(_KNOWN_PARAMETERS)
@@ -115,7 +122,9 @@ class Engine:
 
         self.actions = _BUILTINS.copy()
         self.actions.update(actions)
-        self.logger = logging.getLogger(logger_name)
+        if logger is None:
+            logger = logging.getLogger('miniscript')
+        self.logger = logger
         self.environment = Environment()
 
     def execute(
