@@ -110,7 +110,7 @@ class TaskLoadTestCase(unittest.TestCase):
     def test_unexpected_top_level(self):
         defn = {"test": {}, "key": 42}
         self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               f"Unknown top-level.*key",
+                               "Unknown top-level.*key",
                                TestTask.load,
                                "test", defn, self.engine)
 
