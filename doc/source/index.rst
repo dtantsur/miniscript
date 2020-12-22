@@ -20,6 +20,9 @@ Built-in tasks
 --------------
 
 .. automodule:: miniscript.tasks
+   :members: required_params, optional_params, singleton_params,
+             free_form, allow_empty
+   :exclude-members: execute, validate
 
 Errors
 ------

@@ -24,7 +24,10 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
 
 class Result:
-    """A result of a task."""
+    """A result of a task.
+
+    Any resulting values are stored directly on the object.
+    """
 
     succeeded: bool
     """Whether the task succeeded (the opposite of :attr:`Result.failed`)."""
@@ -135,6 +138,12 @@ class Task(metaclass=abc.ABCMeta):
     engine: '_engine.Engine'
     """The :class:`Engine` this task uses."""
 
+    name: str
+    """The description of this task in the script.
+
+    If a human-readable description is not provided, uses the task name.
+    """
+
     when: typing.Optional[typing.Callable[[_context.Context], bool]] = None
     """A condition of this task.
 
@@ -164,6 +173,42 @@ class Task(metaclass=abc.ABCMeta):
           when: fallible_result.failed
     """
 
+    register: typing.Optional[str] = None
+    """Variable to store the result of this task as a :class:`Result`."""
+
+    loop: typing.Union[str, list, None] = None
+    """Value to loop over.
+
+    For each item in the resulting list, execute the task passing the item
+    as the ``item`` value in the context.
+
+    .. code-block:: yaml
+
+        - name: do excessive logging
+          log:
+            info: "I like number {{ item }}"
+          loop: [1, 2, 3, 4, 5]
+
+    Conditions are evaluated separately for each item:
+
+    .. code-block:: yaml
+
+        - name: do excessive logging
+          log:
+            info: "I like even numbers like {{ item }}"
+          loop: [1, 2, 3, 4, 5]
+          when: item % 2 == 0
+
+    The loop value itself may be a template yielding a list.
+    """
+
+    params: typing.Mapping[str, typing.Any]
+    """Task parameter after passing preliminary validation.
+
+    Evaluating templated variables is not possible until execution, so this
+    field may contain raw templates.
+    """
+
     def __init__(
         self,
         name: str,
@@ -191,7 +236,6 @@ class Task(metaclass=abc.ABCMeta):
                     "Acceptable types for required/optional params are %s"
                     % ', '.join(x.__name__ for x in self._VALID_TYPES))
 
-        self.name = name
         params = definition[name]
         top_level = {key: value for key, value in definition.items()
                      if key != name}
@@ -212,12 +256,11 @@ class Task(metaclass=abc.ABCMeta):
                 "The register parameter must be a string "
                 f"for task {name}, got {self.register}")
 
-        self.display_name = top_level.pop('name', None)
-        if (self.display_name is not None
-                and not isinstance(self.display_name, str)):
+        self.name = top_level.pop('name', name)
+        if not isinstance(self.name, str):
             raise _types.InvalidTask(
                 "The name parameter must be a string "
-                f"for task {name}, got {self.display_name}")
+                f"for task {name}, got {self.name}")
 
         self.loop = top_level.pop('loop', None)
         if self.loop is not None and not isinstance(self.loop, (str, list)):
@@ -241,7 +284,7 @@ class Task(metaclass=abc.ABCMeta):
                 raise _types.InvalidTask(
                     f"Task {self.name} accepts an object, not {params}")
             params = {self.singleton_param: params}
-        self.params: typing.Mapping[str, typing.Any] = params
+        self.params = params
 
     def validate(
         self,
@@ -367,5 +410,6 @@ class Task(metaclass=abc.ABCMeta):
             evaluates templates.
         :param context: A :class:`Context` object to hold execution context.
             It is a mutable mapping that holds variables.
-        :returns: The value stored as a result if ``register`` is set.
+        :returns: Values stored in a :class:`Result` if :attr:`Task.register``
+            is set (otherwise discarded). A mapping from names to values.
         """

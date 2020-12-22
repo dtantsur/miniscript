@@ -1,0 +1,14 @@
+---
+- name: add some values
+  add:
+    - 23423
+    - 43874
+    - 22834
+  register: result
+
+- name: log the result
+  log:
+    info: "The sum is {{ result.sum }}"
+
+- name: return the result
+  return: "{{ result.sum }}"

@@ -104,13 +104,77 @@ _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
 
 
 class Engine:
-    """Engine running scripts.
+    """Engine that runs scripts.
 
     :param tasks: Tasks to use for this engine, see :attr:`Engine.tasks`.
     :param logger: Logger to use for all logging. If `None`, a default one
         is created.
     :raises: ValueError on tasks conflicting with built-in parameters, see
         :class:`Task`.
+
+    The development flow is:
+
+    #. define your tasks by subclassing :class:`Task`;
+    #. create an :class:`Engine` with the task definitions;
+    #. (optionally) create a custom :class:`Context`;
+    #. run :meth:`Engine.execute`.
+
+    Preparing an engine:
+
+    .. code-block:: python
+
+        import miniscript
+
+        class AddTask(miniscript.Task):
+            required_params = {'values': list}
+            singleton_param = 'values'
+
+            def validate(self, params, context):
+                for item in params['values']:
+                    int(item)
+
+            def execute(self, params, context):
+                return {"sum": sum(params['values'])}
+
+        engine = miniscript.Engine({'add': AddTask})
+
+    Some tasks are built into the engine:
+
+    * ``block`` - :class:`tasks.Block`
+    * ``fail`` - :class:`tasks.Fail`
+    * ``log`` - :class:`tasks.Log`
+    * ``return`` - :class:`tasks.Return`
+    * ``vars`` - :class:`tasks.Vars`
+
+    An example script:
+
+    .. code-block:: yaml
+
+        ---
+        - name: add some values
+          add:
+            - 23423
+            - 43874
+            - 22834
+          register: result
+
+        - name: log the result
+          log:
+            info: "The sum is {{ result.sum }}"
+
+        - name: return the result
+          return: "{{ result.sum }}"
+
+    Executing a script (obviously, it does not have to come from YAML):
+
+    .. code-block:: python
+
+        import yaml
+
+        with open("script.yaml") as fp:
+            code = yaml.safe_load(fp)
+
+        result = engine.execute(code)  # result == 90131
     """
 
     tasks: typing.Dict[str, typing.Type[_task.Task]]
@@ -119,13 +183,7 @@ class Engine:
     The name will be used in a script. The implementation must be
     a :class:`Task` subclass (not an instance).
 
-    Includes built-in tasks:
-
-    * ``block`` - :class:`tasks.Block`
-    * ``fail`` - :class:`tasks.Fail`
-    * ``log`` - :class:`tasks.Log`
-    * ``return`` - :class:`tasks.Return`
-    * ``vars`` - :class:`tasks.Vars`
+    Includes built-in tasks.
     """
 
     logger: logging.Logger
