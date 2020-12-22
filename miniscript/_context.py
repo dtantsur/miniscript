@@ -101,8 +101,6 @@ class Namespace(abc.MutableMapping):
 class Context(Namespace):
     """A context of an execution."""
 
-    __slots__ = ()
-
     def __init__(self, engine, *args, **kwargs):
         # A trick to enable easier copying
         env = (engine if isinstance(engine, jinja2.Environment)
