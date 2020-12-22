@@ -15,6 +15,7 @@ import unittest
 from unittest import mock
 
 import miniscript
+from miniscript import _context
 from miniscript import _task
 
 
@@ -177,6 +178,24 @@ class TaskValidateTestCase(unittest.TestCase):
         self.assertRaisesRegex(miniscript.InvalidDefinition,
                                "At least one",
                                task.validate, task.params, self.context)
+
+    def test_eager_validation(self):
+        defn = {"test": {"object": {}, "number": "{{ not_found }}"}}
+        task = TestTask.load("test", defn, self.engine)
+        params = _context.Namespace(
+            self.engine.environment, self.context, task.params)
+        # Since "number" has a type constrained, it has to be evaluated.
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "'not_found' is undefined",
+                               task.validate, params, self.context)
+
+    def test_lazy_validation(self):
+        defn = {"test": {"object": "{{ not_found }}"}}
+        task = TestTask.load("test", defn, self.engine)
+        params = _context.Namespace(
+            self.engine.environment, self.context, task.params)
+        # Since "object" is not constrained, it's not evaluated now.
+        task.validate(params, self.context)
 
 
 class WhenTestCase(unittest.TestCase):

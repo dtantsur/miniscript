@@ -13,6 +13,8 @@
 import abc
 import typing
 
+import jinja2
+
 from . import _context
 from . import _types
 
@@ -215,7 +217,7 @@ class Task(metaclass=abc.ABCMeta):
                 params[name] = type_(params[name])
             except KeyError:
                 continue
-            except (TypeError, ValueError) as exc:
+            except (TypeError, ValueError, jinja2.TemplateError) as exc:
                 raise _types.InvalidDefinition(
                     f"Invalid value for parameter {name} of task "
                     f"{self.name}: {exc}")
