@@ -5,8 +5,7 @@
 *.so
 
 # Sphinx
-_build
-_static
+doc/build
 
 # Packages/installer info
 *.egg

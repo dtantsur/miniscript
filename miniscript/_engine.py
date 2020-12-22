@@ -19,29 +19,32 @@ from . import _types
 from . import tasks
 
 
-_BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
-    "block": tasks.Block,
-    "fail": tasks.Fail,
-    "log": tasks.Log,
-    "return": tasks.Return,
-    "vars": tasks.Vars,
-}
-
-
 class Script:
-    """A prepared script."""
+    """A script.
 
-    def __init__(self, engine: 'Engine', source: _types.SourceType) -> None:
-        """Create a new script.
+    :param engine: An :class:`Engine`.
+    :param source: A source definition or a list of tasks to execute.
+    """
 
-        :param engine: An `Engine`.
-        :param source: A source definition or a list of tasks to execute.
-        """
+    engine: 'Engine'
+    """The :class:`Engine` of this script."""
+
+    tasks: typing.List[_task.Task]
+    """A list of :class:`Tasks` in the order of execution."""
+
+    def __init__(
+        self,
+        engine: 'Engine',
+        source: typing.Union[
+            typing.List[typing.Dict[str, typing.Any]],
+            typing.Dict[str, typing.Any]
+        ],
+    ) -> None:
+        """Create a new script."""
         if isinstance(source, list):
             source = {'tasks': source}
 
         self.engine = engine
-        self.source = source
 
         tasks = source.get('tasks')
         if not tasks:
@@ -61,7 +64,14 @@ class Script:
         self,
         context: typing.Optional[_context.Context] = None,
     ) -> typing.Any:
-        """Execute the script."""
+        """Execute the script.
+
+        :param context: A :class:`Context` object to hold execution context.
+        :return: The outcome of the script or `None`
+        :raises: :class:`ExecutionFailed` on a runtime error.
+        :raises: :class:`InvalidScript` if the script is invalid.
+        :raises: :class:`InvalidTask` if a task is invalid.
+        """
         if context is None:
             context = _context.Context(self.engine)
 
@@ -83,21 +93,53 @@ class Script:
                 raise _types.ExecutionFailed(msg)
 
 
+# Fix Engine documentation when updating this.
+_BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
+    "block": tasks.Block,
+    "fail": tasks.Fail,
+    "log": tasks.Log,
+    "return": tasks.Return,
+    "vars": tasks.Vars,
+}
+
+
 class Engine:
-    """Data processing engine."""
+    """Engine running scripts.
+
+    :param tasks: Tasks to use for this engine, see :attr:`Engine.tasks`.
+    :param logger: Logger to use for all logging. If `None`, a default one
+        is created.
+    :raises: ValueError on tasks conflicting with built-in parameters, see
+        :class:`Task`.
+    """
+
+    tasks: typing.Dict[str, typing.Type[_task.Task]]
+    """Mapping of task names to their implementation classes.
+
+    The name will be used in a script. The implementation must be
+    a :class:`Task` subclass (not an instance).
+
+    Includes built-in tasks:
+
+    * ``block`` - :class:`tasks.Block`
+    * ``fail`` - :class:`tasks.Fail`
+    * ``log`` - :class:`tasks.Log`
+    * ``return`` - :class:`tasks.Return`
+    * ``vars`` - :class:`tasks.Vars`
+    """
+
+    logger: logging.Logger
+    """Python logger used for logging."""
+
+    environment: _context.Environment
+    """An :class:`Environment` object used for templating."""
 
     def __init__(
         self,
         tasks: typing.Dict[str, typing.Type[_task.Task]],
         logger: typing.Optional[logging.Logger] = None,
     ) -> None:
-        """Create a new engine.
-
-        :param tasks: Mapping of tasks to their implementations.
-        :param logger: Logger to use for all logging. If None, a default one
-            is created.
-        :raises: ValueError on conflicting tasks.
-        """
+        """Create a new engine."""
         conflict = set(tasks).intersection(_task.Task._KNOWN_PARAMETERS)
         if conflict:
             raise ValueError('Tasks %s conflict with built-in parameters'
@@ -112,14 +154,21 @@ class Engine:
 
     def execute(
         self,
-        source: _types.SourceType,
+        source: typing.Union[
+            typing.List[typing.Dict[str, typing.Any]],
+            typing.Dict[str, typing.Any]
+        ],
         context: typing.Optional[_context.Context] = None,
     ) -> typing.Any:
         """Execute a script.
 
         :param source: Script source code in JSON format.
-        :param context: An application-specific context object.
+            An implicit :class:`Script` object is created from it.
+        :param context: A :class:`Context` object to hold execution context.
         :return: The outcome of the script or `None`
+        :raises: :class:`ExecutionFailed` on a runtime error.
+        :raises: :class:`InvalidScript` if the script is invalid.
+        :raises: :class:`InvalidTask` if a task is invalid.
         """
         return Script(self, source)(context)
 
@@ -130,15 +179,15 @@ class Engine:
         """Load a task from the definition.
 
         :param definition: JSON definition of a task.
-        :return: An `Task`
+        :return: A :class:`Task`.
         """
         matching = set(definition).intersection(self.tasks)
         if not matching:
             raise _types.UnknownTask(
-                "Task defined by %s is not known" % ','.join(definition))
+                "Task defined by %s is not known" % ', '.join(definition))
         elif len(matching) > 1:
-            raise _types.InvalidDefinition("Item with keys %s is ambiguous"
-                                           % ','.join(matching))
+            raise _types.InvalidTask("Item with keys %s is ambiguous"
+                                     % ','.join(matching))
 
         name = matching.pop()
         task_class = self.tasks[name]

@@ -19,9 +19,8 @@ from ._task import Result
 from ._task import Task
 from ._types import Error
 from ._types import ExecutionFailed
-from ._types import InvalidDefinition
 from ._types import InvalidScript
-from ._types import SourceType
+from ._types import InvalidTask
 from ._types import UnknownTask
 
 
@@ -30,6 +29,5 @@ __all__ = [
     'Context', 'Environment',
     'Engine', 'Script',
     'Task', 'Result',
-    'Error', 'ExecutionFailed', 'InvalidDefinition', 'InvalidScript',
-    'SourceType', 'UnknownTask',
+    'Error', 'ExecutionFailed', 'InvalidTask', 'InvalidScript', 'UnknownTask',
 ]

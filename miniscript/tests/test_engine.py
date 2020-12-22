@@ -22,7 +22,7 @@ from miniscript import _types
 class TestTask(miniscript.Task):
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
         context["answer"] = 42
@@ -31,7 +31,7 @@ class TestTask(miniscript.Task):
 class FinishTask(miniscript.Task):
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
         raise _types.FinishScript(42)
@@ -40,7 +40,7 @@ class FinishTask(miniscript.Task):
 class FailTask(miniscript.Task):
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
         raise RuntimeError("I'm tired")
@@ -88,7 +88,7 @@ class EngineTestCase(unittest.TestCase):
                           [{"test": None}, {"foo": None}])
 
     def test_tasks_ambiguous(self):
-        self.assertRaises(miniscript.InvalidDefinition,
+        self.assertRaises(miniscript.InvalidTask,
                           self.engine.execute,
                           [{"test": None, "finish": None}])
 

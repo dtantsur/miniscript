@@ -13,13 +13,6 @@
 import typing
 
 
-SourceType = typing.Union[
-    typing.List[typing.Dict[str, typing.Any]],
-    typing.Dict[str, typing.Any]
-]
-"""Type of a script source."""
-
-
 JsonType = typing.Union[
     typing.Dict[str, typing.Any],
     typing.List,
@@ -34,19 +27,19 @@ class Error(Exception):
     """Base class for all errors."""
 
 
-class ExecutionFailed(Error, RuntimeError):
+class ExecutionFailed(Error):
     """Execution of a task failed."""
 
 
-class InvalidScript(Error, TypeError):
+class InvalidScript(Error):
     """The script definition is invalid."""
 
 
-class InvalidDefinition(Error, ValueError):
-    """A definition of a task is invalid."""
+class InvalidTask(Error):
+    """The task definition is invalid."""
 
 
-class UnknownTask(InvalidDefinition):
+class UnknownTask(InvalidTask):
     """An task is not known."""
 
 

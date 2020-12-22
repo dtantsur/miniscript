@@ -29,7 +29,7 @@ class TestTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         self.side_effect(object=params['object'])
@@ -82,7 +82,7 @@ class TasksTestCase(unittest.TestCase):
         defn = {"fail": {}}
         task = tasks.Fail.load("fail", defn, self.engine)
         self.assertRaisesRegex(miniscript.ExecutionFailed,
-                               "InvalidDefinition",
+                               "InvalidTask",
                                task, self.context)
 
     def test_block(self):

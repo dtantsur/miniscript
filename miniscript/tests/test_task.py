@@ -29,7 +29,7 @@ class TestTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         self.side_effect(object=params['object'])
@@ -42,7 +42,7 @@ class SingletonTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
         pass
@@ -58,7 +58,7 @@ class OptionalTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
         pass
@@ -95,21 +95,21 @@ class TaskLoadTestCase(unittest.TestCase):
         for item in [42, True, object(), "banana!"]:
             defn = {"test": item}
             with self.subTest(params=item):
-                self.assertRaisesRegex(miniscript.InvalidDefinition,
+                self.assertRaisesRegex(miniscript.InvalidTask,
                                        f"accepts an object, not {item}",
                                        TestTask.load,
                                        "test", defn, self.engine)
 
     def test_wrong_keys(self):
         defn = {"test": {42: "answer"}}
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "must have string keys",
                                TestTask.load,
                                "test", defn, self.engine)
 
     def test_unexpected_top_level(self):
         defn = {"test": {}, "key": 42}
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "Unknown top-level.*key",
                                TestTask.load,
                                "test", defn, self.engine)
@@ -118,7 +118,7 @@ class TaskLoadTestCase(unittest.TestCase):
         for key in ["ignore_errors", "register", "name", "loop"]:
             defn = {"test": {}, key: 42}
             with self.subTest(top_level=key):
-                self.assertRaisesRegex(miniscript.InvalidDefinition,
+                self.assertRaisesRegex(miniscript.InvalidTask,
                                        f"{key}.*must be a",
                                        TestTask.load,
                                        "test", defn, self.engine)
@@ -154,28 +154,28 @@ class TaskValidateTestCase(unittest.TestCase):
     def test_missing_required(self):
         defn = {"test": {"number": 42}}
         task = TestTask.load("test", defn, self.engine)
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "required: 'object'",
                                task.validate, task.params, self.context)
 
     def test_unknown(self):
         defn = {"test": {"object": {}, "who_am_I": None}}
         task = TestTask.load("test", defn, self.engine)
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "not recognized: 'who_am_I'",
                                task.validate, task.params, self.context)
 
     def test_invalid_value(self):
         defn = {"test": {"object": {}, "number": "not number"}}
         task = TestTask.load("test", defn, self.engine)
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "invalid value for parameter 'number'",
                                task.validate, task.params, self.context)
 
     def test_one_required(self):
         defn = {"optional": None}
         task = OptionalTask.load("optional", defn, self.engine)
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "at least one",
                                task.validate, task.params, self.context)
 
@@ -185,7 +185,7 @@ class TaskValidateTestCase(unittest.TestCase):
         params = _context.Namespace(
             self.engine.environment, self.context, task.params)
         # Since "number" has a type constrained, it has to be evaluated.
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
+        self.assertRaisesRegex(miniscript.InvalidTask,
                                "'not_found' is undefined",
                                task.validate, params, self.context)
 
