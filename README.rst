@@ -10,8 +10,12 @@ Ansible-like Embedded Script
    :target: https://miniscript.readthedocs.io/en/latest/
    :alt: Documentation Status
 
-Framework for building data processing scripts using JSON-compatible
-structures and an Ansible-like syntax.
+Framework for embedded scripting using JSON-compatible structures and
+Ansible-like syntax.
+
+.. note::
+   While MiniScript is heavily inspired by Ansible, we are not aiming for
+   perfect compatibility and do diverge in a few aspects.
 
 * Documentation: https://miniscript.readthedocs.io
 * Source: https://github.com/dtantsur/miniscript

@@ -191,4 +191,4 @@ class Engine:
 
         name = matching.pop()
         task_class = self.tasks[name]
-        return task_class.load(name, definition, self)
+        return task_class(name, definition, self)

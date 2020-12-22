@@ -77,6 +77,10 @@ class Task(metaclass=abc.ABCMeta):
 
     An implementation must override :meth:`Task.execute` and may also override
     :meth:`Task.validate`, although it is usually not necessary.
+
+    :param name: Name of this task as used in the script.
+    :param definition: The task definition from the script.
+    :param engine: An :class:`Engine` the task is executed on.
     """
 
     required_params: typing.Dict[str, typing.Optional[typing.Type]] = {}
@@ -128,20 +132,51 @@ class Task(metaclass=abc.ABCMeta):
     # Keep up-to-date with the documentation above.
     _VALID_TYPES = (str, int, float, list)
 
+    engine: '_engine.Engine'
+    """The :class:`Engine` this task uses."""
+
+    when: typing.Optional[typing.Callable[[_context.Context], bool]] = None
+    """A condition of this task.
+
+    Specified via the ``when`` statement and supports templating, e.g.:
+
+    .. code-block:: yaml
+
+        - fail: Address must be defined
+          when: address is undefined
+    """
+
+    ignore_errors: bool = False
+    """Whether to ignore errors and continue execution.
+
+    Often used together with :attr:`Task.register` as
+
+    .. code-block:: yaml
+
+        - name: run a task that can fail
+          task_that_can_fail:
+          ignore_errors: True
+          register: fallible_result
+
+        - name: log if the task failed
+          log:
+            warning: "Task failed: {{ fallible_result.failure }}"
+          when: fallible_result.failed
+    """
+
     def __init__(
         self,
-        engine: '_engine.Engine',
-        params: typing.Union[
-            typing.Dict[str, _types.JsonType],
-            typing.List[_types.JsonType],
-            None
-        ],
         name: str,
-        when: typing.Optional[When] = None,
-        ignore_errors: bool = False,
-        register: typing.Optional[str] = None,
-        loop: typing.Union[str, list, None] = None,
+        definition: typing.Dict[str, typing.Any],
+        engine: '_engine.Engine',
     ):
+        """Load a task from its definition.
+
+        This call can be overridden to provide more parameters common for
+        all tasks.
+        """
+        self.engine = engine
+
         if (self.singleton_param is not None
                 and self.singleton_param not in self.required_params
                 and self.singleton_param not in self.optional_params
@@ -156,12 +191,45 @@ class Task(metaclass=abc.ABCMeta):
                     "Acceptable types for required/optional params are %s"
                     % ', '.join(x.__name__ for x in self._VALID_TYPES))
 
-        self.engine = engine
         self.name = name
-        self.when = when
-        self.ignore_errors = ignore_errors
-        self.register = register
-        self.loop = loop
+        params = definition[name]
+        top_level = {key: value for key, value in definition.items()
+                     if key != name}
+
+        when = top_level.pop('when', None)
+        if when is not None:
+            self.when = When(engine, when)
+
+        self.ignore_errors = top_level.pop('ignore_errors', False)
+        if not isinstance(self.ignore_errors, bool):
+            raise _types.InvalidTask(
+                "The ignore_errors parameter must be a boolean for task "
+                f"{name}, got {self.ignore_errors}")
+
+        self.register = top_level.pop('register', None)
+        if self.register is not None and not isinstance(self.register, str):
+            raise _types.InvalidTask(
+                "The register parameter must be a string "
+                f"for task {name}, got {self.register}")
+
+        self.display_name = top_level.pop('name', None)
+        if (self.display_name is not None
+                and not isinstance(self.display_name, str)):
+            raise _types.InvalidTask(
+                "The name parameter must be a string "
+                f"for task {name}, got {self.display_name}")
+
+        self.loop = top_level.pop('loop', None)
+        if self.loop is not None and not isinstance(self.loop, (str, list)):
+            raise _types.InvalidTask(
+                "The loop parameter must be a template or a list "
+                f"for task {name}, got {self.loop}")
+
+        if top_level:
+            raise _types.InvalidTask(
+                f"Unknown top-level parameters {', '.join(top_level)} "
+                f"for task {name}")
+
         if params is None:
             params = {}
         elif (isinstance(params, abcoll.Mapping)
@@ -174,63 +242,6 @@ class Task(metaclass=abc.ABCMeta):
                     f"Task {self.name} accepts an object, not {params}")
             params = {self.singleton_param: params}
         self.params: typing.Mapping[str, typing.Any] = params
-
-    @classmethod
-    def load(
-        cls,
-        name: str,
-        definition: typing.Dict[str, typing.Any],
-        engine: '_engine.Engine',
-    ) -> 'Task':
-        """Load a task from its definition.
-
-        This call can be overridden to provide more parameters common for
-        all tasks.
-
-        :param name: Name of this task as used in the script.
-        :param definition: The task definition from the script.
-        :param engine: An :class:`Engine` the task is executed on.
-        :returns: A prepared :class:`Task` object.
-        """
-        params = definition[name]
-        top_level = {key: value for key, value in definition.items()
-                     if key != name}
-
-        when = top_level.pop('when', None)
-        if when is not None:
-            when = When(engine, when)
-
-        ignore_errors = top_level.pop('ignore_errors', False)
-        if not isinstance(ignore_errors, bool):
-            raise _types.InvalidTask(
-                "The ignore_errors parameter must be a boolean for task "
-                f"{name}, got {ignore_errors}")
-
-        register = top_level.pop('register', None)
-        if register is not None and not isinstance(register, str):
-            raise _types.InvalidTask(
-                "The register parameter must be a string "
-                f"for task {name}, got {register}")
-
-        display_name = top_level.pop('name', None)
-        if display_name is not None and not isinstance(display_name, str):
-            raise _types.InvalidTask(
-                "The name parameter must be a string "
-                f"for task {name}, got {display_name}")
-
-        loop = top_level.pop('loop', None)
-        if loop is not None and not isinstance(loop, (str, list)):
-            raise _types.InvalidTask(
-                "The loop parameter must be a template or a list "
-                f"for task {name}, got {loop}")
-
-        if top_level:
-            raise _types.InvalidTask(
-                f"Unknown top-level parameters {', '.join(top_level)} "
-                f"for task {name}")
-
-        return cls(engine, params, display_name or name,
-                   when, ignore_errors, register, loop)
 
     def validate(
         self,

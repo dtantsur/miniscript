@@ -45,42 +45,42 @@ class TasksTestCase(unittest.TestCase):
 
     def test_return(self):
         defn = {"return": {"result": "{{ answer }}"}}
-        task = tasks.Return.load("return", defn, self.engine)
+        task = tasks.Return("return", defn, self.engine)
         with self.assertRaises(_types.FinishScript) as exc_ctx:
             task(self.context)
         self.assertEqual(42, exc_ctx.exception.result)
 
     def test_return_singleton(self):
         defn = {"return": "{{ answer }}"}
-        task = tasks.Return.load("return", defn, self.engine)
+        task = tasks.Return("return", defn, self.engine)
         with self.assertRaises(_types.FinishScript) as exc_ctx:
             task(self.context)
         self.assertEqual(42, exc_ctx.exception.result)
 
     def test_return_none(self):
         defn = {"return": None}
-        task = tasks.Return.load("return", defn, self.engine)
+        task = tasks.Return("return", defn, self.engine)
         with self.assertRaises(_types.FinishScript) as exc_ctx:
             task(self.context)
         self.assertIsNone(exc_ctx.exception.result)
 
     def test_fail(self):
         defn = {"fail": {"msg": "I failed"}}
-        task = tasks.Fail.load("fail", defn, self.engine)
+        task = tasks.Fail("fail", defn, self.engine)
         self.assertRaisesRegex(miniscript.ExecutionFailed,
                                "Execution aborted: I failed",
                                task, self.context)
 
     def test_fail_singleton(self):
         defn = {"fail": "I failed"}
-        task = tasks.Fail.load("fail", defn, self.engine)
+        task = tasks.Fail("fail", defn, self.engine)
         self.assertRaisesRegex(miniscript.ExecutionFailed,
                                "Execution aborted: I failed",
                                task, self.context)
 
     def test_fail_msg_required(self):
         defn = {"fail": {}}
-        task = tasks.Fail.load("fail", defn, self.engine)
+        task = tasks.Fail("fail", defn, self.engine)
         self.assertRaisesRegex(miniscript.ExecutionFailed,
                                "InvalidTask",
                                task, self.context)
@@ -90,14 +90,14 @@ class TasksTestCase(unittest.TestCase):
             {"test": {"object": "{{ answer + %d }}" % x}}
             for x in range(3)
         ]}
-        task = tasks.Block.load("block", defn, self.engine)
+        task = tasks.Block("block", defn, self.engine)
         task(self.context)
 
     def test_log(self):
         for call in ("debug", "info", "warning", "error"):
             with self.subTest(call=call):
                 defn = {"log": {call: "The answer was {{ answer }}"}}
-                task = tasks.Log.load("log", defn, self.engine)
+                task = tasks.Log("log", defn, self.engine)
                 with mock.patch.object(self.engine.logger, call,
                                        autospec=True) as mock_log:
                     task(self.context)
@@ -105,7 +105,7 @@ class TasksTestCase(unittest.TestCase):
 
     def test_vars(self):
         defn = {"vars": {"next": "{{ answer + 1 }}", "cat": "orange"}}
-        task = tasks.Vars.load("vars", defn, self.engine)
+        task = tasks.Vars("vars", defn, self.engine)
         task(self.context)
         self.assertEqual(43, self.context["next"])
         self.assertEqual("orange", self.context["cat"])
