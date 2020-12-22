@@ -155,28 +155,28 @@ class TaskValidateTestCase(unittest.TestCase):
         defn = {"test": {"number": 42}}
         task = TestTask.load("test", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               "object are required",
+                               "required: 'object'",
                                task.validate, task.params, self.context)
 
     def test_unknown(self):
         defn = {"test": {"object": {}, "who_am_I": None}}
         task = TestTask.load("test", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               "Parameter(s) who_am_I",
+                               "not recognized: 'who_am_I'",
                                task.validate, task.params, self.context)
 
     def test_invalid_value(self):
         defn = {"test": {"object": {}, "number": "not number"}}
         task = TestTask.load("test", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               "Invalid value for parameter number",
+                               "invalid value for parameter 'number'",
                                task.validate, task.params, self.context)
 
     def test_one_required(self):
         defn = {"optional": None}
         task = OptionalTask.load("optional", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               "At least one",
+                               "at least one",
                                task.validate, task.params, self.context)
 
     def test_eager_validation(self):

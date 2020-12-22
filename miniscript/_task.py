@@ -196,18 +196,19 @@ class Task(metaclass=abc.ABCMeta):
         unknown = set(params).difference(known)
         if not self.free_form and unknown:
             raise _types.InvalidDefinition(
-                f"Parameters {', '.join(unknown)} are not recognized "
-                f"for task {self.name}")
+                "parameter(s) not recognized: %s"
+                % ', '.join("'%s'" % item for item in unknown))
 
         missing = set(self.required_params).difference(params)
         if missing:
             raise _types.InvalidDefinition(
-                f"Parameter(s) {', '.join(missing)} are required for "
-                f"task {self.name}")
+                "parameter(s) required: %s"
+                % ', '.join("'%s'" % item for item in missing))
 
         if not params and not self.allow_empty:
-            raise _types.InvalidDefinition("At least one of %s is required"
-                                           % ', '.join(self.optional_params))
+            raise _types.InvalidDefinition(
+                "at least one of %s is required"
+                % ', '.join("'%s'" % item for item in self.optional_params))
 
         for name, type_ in known.items():
             if type_ is None:
@@ -219,8 +220,7 @@ class Task(metaclass=abc.ABCMeta):
                 continue
             except (TypeError, ValueError, jinja2.TemplateError) as exc:
                 raise _types.InvalidDefinition(
-                    f"Invalid value for parameter {name} of task "
-                    f"{self.name}: {exc}")
+                    f"invalid value for parameter '{name}': {exc}")
 
     def __call__(self, context: '_context.Context') -> None:
         """Check conditions and execute the task in the context."""
