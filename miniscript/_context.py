@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from collections import abc
 import typing
 
 import jinja2
@@ -46,10 +47,7 @@ class Environment(sandbox.Environment):  # type: ignore
     def evaluate_recursive(self, source, context: 'Context'):
         """Evaluate a complex value recursively."""
         if isinstance(source, dict):
-            if isinstance(source, Namespace):
-                return source
-            else:
-                return Namespace(self, context, source)
+            return Namespace(self, context, source)
         elif isinstance(source, list):
             return [self.evaluate_recursive(item, context) for item in source]
         elif isinstance(source, str):
@@ -70,24 +68,34 @@ class Environment(sandbox.Environment):  # type: ignore
 Template.environment_class = Environment
 
 
-class Namespace(dict):
+class Namespace(abc.MutableMapping):
     """A namespace with value rendering."""
 
-    __slots__ = ("_env", "_ctx")
+    __slots__ = ("_env", "_ctx", "_data")
 
     def __init__(self, environment, context, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self._data = dict(*args, **kwargs)
         self._env = environment
         self._ctx = context
 
     def __getitem__(self, key):
-        value = super().__getitem__(key)
-        result = self._env.evaluate_recursive(value, self._ctx)
-        return result
+        value = self._data[key]
+        return self._env.evaluate_recursive(value, self._ctx)
+
+    def __setitem__(self, key, value):
+        self._data[key] = value
+
+    def __delitem__(self, key):
+        del self._data[key]
+
+    def __len__(self):
+        return len(self._data)
 
     def __iter__(self):
-        raise NotImplementedError(
-            "Iterating is not supported for lazy namespaces")
+        return iter(self._data)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self._data}"
 
 
 class Context(Namespace):
@@ -96,4 +104,10 @@ class Context(Namespace):
     __slots__ = ()
 
     def __init__(self, engine, *args, **kwargs):
-        super().__init__(engine.environment, self, *args, **kwargs)
+        # A trick to enable easier copying
+        env = (engine if isinstance(engine, jinja2.Environment)
+               else engine.environment)
+        super().__init__(env, self, *args, **kwargs)
+
+    def copy(self):
+        return Context(self._env, self._data.copy())

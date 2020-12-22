@@ -38,7 +38,7 @@ class Block(_task.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context',
     ) -> None:
         for task in params["tasks"]:
@@ -54,10 +54,10 @@ class Fail(_task.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context',
     ) -> None:
-        raise _types.ExecutionFailed(f"{self.name} aborted: {params['msg']}")
+        raise _types.Aborted(params["msg"])
 
 
 class Log(_task.Task):
@@ -70,7 +70,7 @@ class Log(_task.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context'
     ) -> None:
         for key, value in params.items():
@@ -86,7 +86,7 @@ class Return(_task.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context',
     ) -> None:
         raise _types.FinishScript(params.get('result'))
@@ -99,7 +99,7 @@ class Vars(_task.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context'
     ) -> None:
         for key, value in params.items():

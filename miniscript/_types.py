@@ -58,7 +58,11 @@ class UnknownTask(InvalidDefinition):
 
 
 class FinishScript(BaseException):
-    """Abort the script."""
+    """Finish the script successfully."""
 
     def __init__(self, result: typing.Any):
         self.result = result
+
+
+class Aborted(ExecutionFailed):
+    """Abort the script."""

@@ -216,9 +216,12 @@ class Task(metaclass=abc.ABCMeta):
                                            self.name, exc)
                 result = Result(None, f"{exc.__class__.__name__}: {exc}")
             else:
-                raise _types.ExecutionFailed(
-                    f"Failed to execute task {self.name}. "
-                    f"{exc.__class__.__name__}: {exc}")
+                if isinstance(exc, _types.Aborted):
+                    msg = f"Execution aborted: {exc}"
+                else:
+                    msg = (f"Failed to execute task {self.name}. "
+                           f"{exc.__class__.__name__}: {exc}")
+                raise _types.ExecutionFailed(msg)
         else:
             result = Result(value)
 
@@ -228,7 +231,7 @@ class Task(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context',
     ) -> typing.Any:
         """Execute the task.

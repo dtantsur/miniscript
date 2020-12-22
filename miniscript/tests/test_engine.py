@@ -22,7 +22,7 @@ from miniscript import _types
 class TestTask(miniscript.Task):
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
         context["answer"] = 42
@@ -31,7 +31,7 @@ class TestTask(miniscript.Task):
 class FinishTask(miniscript.Task):
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
         raise _types.FinishScript(42)
@@ -40,7 +40,7 @@ class FinishTask(miniscript.Task):
 class FailTask(miniscript.Task):
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
         raise RuntimeError("I'm tired")

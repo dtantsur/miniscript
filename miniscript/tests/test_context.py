@@ -62,9 +62,6 @@ class EnvironmentTestCase(unittest.TestCase):
         context = miniscript.Context(self.engine, data)
         result = self.env.evaluate_recursive("{{ value }}", context)
         self.assertIsInstance(result, _context.Namespace)
-        # We refuse to render further
-        self.assertEqual({'key': '{{ key }}'},
-                         result["key"][0]["key"][0]["key"][0]["key"][0])
 
 
 class ContextTestCase(unittest.TestCase):
@@ -94,6 +91,17 @@ class ContextTestCase(unittest.TestCase):
         self.assertIsInstance(sub_ctx, _context.Namespace)
         self.assertEqual("ANSWER IS 42", sub_ctx["value"])
 
-    def test_no_iter(self):
+    def test_iter(self):
         ctx = miniscript.Context(self.engine, {"key": "value"})
-        self.assertRaises(NotImplementedError, iter, ctx)
+        self.assertEqual(["key"], list(ctx))
+
+    def test_eq(self):
+        ctx = miniscript.Context(self.engine, {"key": "value"})
+        self.assertEqual({"key": "value"}, ctx)
+
+    def test_set_del(self):
+        ctx = miniscript.Context(self.engine, {"key": "value"})
+        ctx["key"] = "value2"
+        self.assertEqual({"key": "value2"}, ctx)
+        del ctx["key"]
+        self.assertEqual({}, ctx)

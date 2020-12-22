@@ -28,10 +28,10 @@ class TestTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
-        self.side_effect(**params)
+        self.side_effect(object=params['object'])
         return params['object']
 
 
@@ -41,7 +41,7 @@ class SingletonTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
         pass
@@ -57,7 +57,7 @@ class OptionalTask(miniscript.Task):
 
     def execute(
         self,
-        params: typing.Dict[str, typing.Any],
+        params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
         pass
