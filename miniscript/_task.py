@@ -11,6 +11,7 @@
 # under the License.
 
 import abc
+from collections import abc as abcoll
 import typing
 
 import jinja2
@@ -122,16 +123,16 @@ class Task(metaclass=abc.ABCMeta):
         self.loop = loop
         if params is None:
             params = {}
-        elif isinstance(params, dict) and not all(isinstance(key, str)
-                                                  for key in params):
+        elif (isinstance(params, abcoll.Mapping)
+              and not all(isinstance(key, str) for key in params)):
             raise _types.InvalidDefinition(
                 f"Parameters for task {self.name} must have string keys")
-        elif not isinstance(params, dict):
+        elif not isinstance(params, abcoll.Mapping):
             if self.singleton_param is None:
                 raise _types.InvalidDefinition(
                     f"Task {self.name} accepts an object, not {params}")
             params = {self.singleton_param: params}
-        self.params: typing.Dict[str, typing.Any] = params
+        self.params: typing.Mapping[str, typing.Any] = params
 
     @classmethod
     def load(
@@ -222,7 +223,7 @@ class Task(metaclass=abc.ABCMeta):
                 raise _types.InvalidDefinition(
                     f"invalid value for parameter '{name}': {exc}")
 
-    def __call__(self, context: '_context.Context') -> None:
+    def __call__(self, context: _context.Context) -> None:
         """Check conditions and execute the task in the context."""
         if self.loop is None:
             result = self._execute_one(context)
@@ -236,7 +237,7 @@ class Task(metaclass=abc.ABCMeta):
             if self.register is not None:
                 context[self.register] = {"results": results}
 
-    def _execute_one(self, context: '_context.Context',
+    def _execute_one(self, context: _context.Context,
                      item: typing.Any = None) -> Result:
         """One iteration of a loop or a single execution."""
         if self.loop is not None:
@@ -260,6 +261,9 @@ class Task(metaclass=abc.ABCMeta):
         try:
             self.validate(params, context)
             values = self.execute(params, context)
+            if values is not None and not isinstance(values, abcoll.Mapping):
+                raise RuntimeError("a task must return None or a mapping, "
+                                   f"got {values}")
         except Exception as exc:
             if self.ignore_errors:
                 self.engine.logger.warning("Task %s failed: %s (ignoring)",
@@ -279,7 +283,7 @@ class Task(metaclass=abc.ABCMeta):
     def execute(
         self,
         params: typing.MutableMapping[str, typing.Any],
-        context: '_context.Context',
+        context: _context.Context,
     ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         """Execute the task.
 

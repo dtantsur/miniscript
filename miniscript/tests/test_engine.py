@@ -92,13 +92,13 @@ class EngineTestCase(unittest.TestCase):
                           self.engine.execute,
                           [{"test": None, "finish": None}])
 
-    @mock.patch.object(TestTask, 'execute', autospec=True)
+    @mock.patch.object(TestTask, 'execute', autospec=True, return_value=None)
     def test_execute(self, mock_execute):
         result = self.engine.execute({"tasks": [{"test": None}]})
         self.assertIsNone(result)
         mock_execute.assert_called_once_with(mock.ANY, {}, mock.ANY)
 
-    @mock.patch.object(TestTask, 'execute', autospec=True)
+    @mock.patch.object(TestTask, 'execute', autospec=True, return_value=None)
     def test_execute_list(self, mock_execute):
         result = self.engine.execute([{"test": None}])
         self.assertIsNone(result)

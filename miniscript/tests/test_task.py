@@ -267,6 +267,15 @@ class ExecuteTestCase(unittest.TestCase):
                                task, self.context)
         task.side_effect.assert_not_called()
 
+    @mock.patch.object(TestTask, 'execute', autospec=True, return_value=42)
+    def test_execution_wrong_result(self, mock_execute):
+        defn = {"test": {"object": "{{ answer }}"}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "must return None or a mapping",
+                               task, self.context)
+        mock_execute.assert_called_once_with(task, mock.ANY, self.context)
+
     def test_ignore_errors(self):
         defn = {"test": {"object": "{{ answer.wrong.key }}"},
                 "ignore_errors": True}

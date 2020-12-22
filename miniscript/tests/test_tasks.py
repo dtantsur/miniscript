@@ -33,14 +33,14 @@ class TestTask(miniscript.Task):
         context: miniscript.Context,
     ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         self.side_effect(object=params['object'])
-        return params['object']
+        return {"result": params['object']}
 
 
 class TasksTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.engine = miniscript.Engine({})
+        self.engine = miniscript.Engine({'test': TestTask})
         self.context = miniscript.Context(self.engine, answer=42)
 
     def test_return(self):
@@ -50,9 +50,45 @@ class TasksTestCase(unittest.TestCase):
             task(self.context)
         self.assertEqual(42, exc_ctx.exception.result)
 
+    def test_return_singleton(self):
+        defn = {"return": "{{ answer }}"}
+        task = tasks.Return.load("return", defn, self.engine)
+        with self.assertRaises(_types.FinishScript) as exc_ctx:
+            task(self.context)
+        self.assertEqual(42, exc_ctx.exception.result)
+
+    def test_return_none(self):
+        defn = {"return": None}
+        task = tasks.Return.load("return", defn, self.engine)
+        with self.assertRaises(_types.FinishScript) as exc_ctx:
+            task(self.context)
+        self.assertIsNone(exc_ctx.exception.result)
+
     def test_fail(self):
         defn = {"fail": {"msg": "I failed"}}
         task = tasks.Fail.load("fail", defn, self.engine)
         self.assertRaisesRegex(miniscript.ExecutionFailed,
                                "Execution aborted: I failed",
                                task, self.context)
+
+    def test_fail_singleton(self):
+        defn = {"fail": "I failed"}
+        task = tasks.Fail.load("fail", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "Execution aborted: I failed",
+                               task, self.context)
+
+    def test_fail_msg_required(self):
+        defn = {"fail": {}}
+        task = tasks.Fail.load("fail", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "InvalidDefinition",
+                               task, self.context)
+
+    def test_block(self):
+        defn = {"block": [
+            {"test": {"object": "{{ answer + %d }}" % x}}
+            for x in range(3)
+        ]}
+        task = tasks.Block.load("block", defn, self.engine)
+        task(self.context)

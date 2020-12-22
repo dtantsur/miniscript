@@ -17,7 +17,7 @@ import typing
 from . import _task
 from . import _types
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from . import _context
 
 
