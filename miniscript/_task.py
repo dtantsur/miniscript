@@ -27,11 +27,13 @@ class Result:
         self,
         results: typing.Mapping[str, typing.Any],
         failure: typing.Optional[str] = None,
+        skipped: bool = False,
     ):
         self.__dict__.update(results)
         self.succeeded = failure is None
         self.failed = not self.succeeded
         self.failure = failure
+        self.skipped = skipped
 
 
 class When:
@@ -78,16 +80,23 @@ class Task(metaclass=abc.ABCMeta):
     """If no parameters are required, whether to allow empty input."""
 
     _KNOWN_PARAMETERS = frozenset(
-        ['name', 'when', 'ignore_errors', 'register'])
+        ['name', 'when', 'ignore_errors', 'register', 'loop'])
+
+    _VALID_TYPES = (str, int, float, list)
 
     def __init__(
         self,
         engine: '_engine.Engine',
-        params: _types.ParamsType,
+        params: typing.Union[
+            typing.Dict[str, _types.JsonType],
+            typing.List[_types.JsonType],
+            None
+        ],
         name: str,
         when: typing.Optional[When] = None,
         ignore_errors: bool = False,
         register: typing.Optional[str] = None,
+        loop: typing.Union[str, list, None] = None,
     ):
         if (self.singleton_param is not None
                 and self.singleton_param not in self.required_params
@@ -96,12 +105,31 @@ class Task(metaclass=abc.ABCMeta):
             raise TypeError("The singleton parameter must be either "
                             "a required or an optional parameter")
 
+        for spec in (self.required_params, self.optional_params):
+            if any(item is not None and item not in self._VALID_TYPES
+                   for item in spec.values()):
+                raise TypeError(
+                    "Acceptable types for required/optional params are %s"
+                    % ', '.join(x.__name__ for x in self._VALID_TYPES))
+
         self.engine = engine
         self.name = name
         self.when = when
         self.ignore_errors = ignore_errors
         self.register = register
-        self.params = self.validate(params)
+        self.loop = loop
+        if params is None:
+            params = {}
+        elif isinstance(params, dict) and not all(isinstance(key, str)
+                                                  for key in params):
+            raise _types.InvalidDefinition(
+                f"Parameters for task {self.name} must have string keys")
+        elif not isinstance(params, dict):
+            if self.singleton_param is None:
+                raise _types.InvalidDefinition(
+                    f"Task {self.name} accepts an object, not {params}")
+            params = {self.singleton_param: params}
+        self.params: typing.Dict[str, typing.Any] = params
 
     @classmethod
     def load(
@@ -137,84 +165,104 @@ class Task(metaclass=abc.ABCMeta):
                 "The name parameter must be a string "
                 f"for task {name}, got {display_name}")
 
+        loop = top_level.pop('loop', None)
+        if loop is not None and not isinstance(loop, (str, list)):
+            raise _types.InvalidDefinition(
+                "The loop parameter must be a template or a list "
+                f"for task {name}, got {loop}")
+
+        if top_level:
+            raise _types.InvalidDefinition(
+                f"Unknown top-level parameters {', '.join(top_level)} "
+                f"for task {name}")
+
         return cls(engine, params, display_name or name,
-                   when, ignore_errors, register)
+                   when, ignore_errors, register, loop)
 
     def validate(
         self,
-        params: typing.Any,
-    ) -> typing.Dict[str, typing.Any]:
-        """Validate the passed parameters."""
-        if params is None:
-            params = {}
-        elif isinstance(params, dict) and not all(isinstance(key, str)
-                                                  for key in params):
-            raise _types.InvalidDefinition(
-                f"Parameters for task {self.name} must have string keys")
-        elif not isinstance(params, dict):
-            if self.singleton_param is None:
-                raise _types.InvalidDefinition(
-                    f"Task {self.name} accepts an object, not {params}")
-            params = {self.singleton_param: params}
+        params: typing.MutableMapping[str, typing.Any],
+        context: _context.Context,
+    ) -> None:
+        """Validate the passed parameters.
 
+        The call may modify the parameters in-place, e.g. to apply type
+        conversion.
+        """
         known = dict(self.required_params, **self.optional_params)
+
         unknown = set(params).difference(known)
         if not self.free_form and unknown:
             raise _types.InvalidDefinition(
                 f"Parameters {', '.join(unknown)} are not recognized "
                 f"for task {self.name}")
 
-        result = {}
         missing = set(self.required_params).difference(params)
         if missing:
             raise _types.InvalidDefinition(
                 f"Parameter(s) {', '.join(missing)} are required for "
                 f"task {self.name}")
 
+        if not params and not self.allow_empty:
+            raise _types.InvalidDefinition("At least one of %s is required"
+                                           % ', '.join(self.optional_params))
+
         for name, type_ in known.items():
+            if type_ is None:
+                continue
+
             try:
-                value = params[name]
+                params[name] = type_(params[name])
             except KeyError:
                 continue
-
-            if type_ is None:
-                result[name] = value
-                continue
-
-            try:
-                result[name] = type_(value)
             except (TypeError, ValueError) as exc:
                 raise _types.InvalidDefinition(
                     f"Invalid value for parameter {name} of task "
                     f"{self.name}: {exc}")
 
-        if not result and not self.allow_empty:
-            raise _types.InvalidDefinition("At least one of %s is required"
-                                           % ', '.join(self.optional_params))
-
-        return result
-
     def __call__(self, context: '_context.Context') -> None:
         """Check conditions and execute the task in the context."""
+        if self.loop is None:
+            result = self._execute_one(context)
+            if self.register is not None:
+                context[self.register] = result
+        else:
+            loop = self.engine.environment.evaluate_recursive(self.loop,
+                                                              context)
+            results = [self._execute_one(context, item)
+                       for item in loop]
+            if self.register is not None:
+                context[self.register] = {"results": results}
+
+    def _execute_one(self, context: '_context.Context',
+                     item: typing.Any = None) -> Result:
+        """One iteration of a loop or a single execution."""
+        if self.loop is not None:
+            context = context.copy()
+            context["item"] = item
+
         try:
             if self.when is not None and not self.when(context):
                 self.engine.logger.debug("Task %s is skipped", self.name)
-                return
+                return Result({}, skipped=True)
         except Exception as exc:
             raise _types.ExecutionFailed(
                 f"Failed to evaluate condition for {self.name}. "
                 f"{exc.__class__.__name__}: {exc}")
 
-        params = _context.Namespace(self.engine.environment, context,
-                                    self.params)
+        # We need a Namespace to be able to evaluate parameters during
+        # validation.
+        params = _context.Namespace(
+            self.engine.environment, context, self.params)
 
         try:
+            self.validate(params, context)
             values = self.execute(params, context)
         except Exception as exc:
             if self.ignore_errors:
                 self.engine.logger.warning("Task %s failed: %s (ignoring)",
                                            self.name, exc)
-                result = Result({}, f"{exc.__class__.__name__}: {exc}")
+                return Result({}, f"{exc.__class__.__name__}: {exc}")
             else:
                 if isinstance(exc, _types.Aborted):
                     msg = f"Execution aborted: {exc}"
@@ -223,10 +271,7 @@ class Task(metaclass=abc.ABCMeta):
                            f"{exc.__class__.__name__}: {exc}")
                 raise _types.ExecutionFailed(msg)
         else:
-            result = Result(values or {})
-
-        if self.register is not None:
-            context[self.register] = result
+            return Result(values or {})
 
     @abc.abstractmethod
     def execute(

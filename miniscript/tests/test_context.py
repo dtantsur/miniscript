@@ -105,3 +105,15 @@ class ContextTestCase(unittest.TestCase):
         self.assertEqual({"key": "value2"}, ctx)
         del ctx["key"]
         self.assertEqual({}, ctx)
+
+    def test_copy(self):
+        orig = {"key": "value", "dict": {}}
+        ctx = miniscript.Context(self.engine, orig.copy())
+
+        copy = ctx.copy()
+        copy["key"] = "value2"
+        self.assertEqual(orig, ctx)
+
+        ns = ctx["dict"].copy()
+        ns["key"] = "value3"
+        self.assertEqual(orig, ctx)

@@ -30,11 +30,12 @@ class Block(_task.Task):
 
     def validate(
         self,
-        params: _types.ParamsType
-    ) -> typing.Dict[str, typing.Any]:
-        tasks = super().validate(params)["tasks"]
-        tasks = [self.engine._load_task(task) for task in tasks]
-        return {"tasks": tasks}
+        params: typing.MutableMapping[str, typing.Any],
+        context: '_context.Context',
+    ) -> None:
+        super().validate(params, context)
+        tasks = [self.engine._load_task(task) for task in params['tasks']]
+        params['tasks'] = tasks
 
     def execute(
         self,

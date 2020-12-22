@@ -97,6 +97,9 @@ class Namespace(abc.MutableMapping):
     def __repr__(self):
         return f"{self.__class__.__name__} {self._data}"
 
+    def copy(self):
+        return Namespace(self._env, self._ctx, self._data)
+
 
 class Context(Namespace):
     """A context of an execution."""
@@ -108,4 +111,4 @@ class Context(Namespace):
         super().__init__(env, self, *args, **kwargs)
 
     def copy(self):
-        return Context(self._env, self._data.copy())
+        return Context(self._env, self._data)

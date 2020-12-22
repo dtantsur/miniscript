@@ -30,13 +30,6 @@ JsonType = typing.Union[
 ]
 
 
-ParamsType = typing.Union[
-    typing.Dict[str, JsonType],
-    typing.List[JsonType],
-    None
-]
-
-
 class Error(Exception):
     """Base class for all errors."""
 

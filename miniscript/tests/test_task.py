@@ -63,6 +63,10 @@ class OptionalTask(miniscript.Task):
         pass
 
 
+class WrongTypesTask(TestTask):
+    optional_params = {"message": dict}
+
+
 class TaskLoadTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -75,17 +79,16 @@ class TaskLoadTestCase(unittest.TestCase):
                                WrongSingletonTask,
                                self.engine, {}, "wrong")
 
-    def test_required(self):
+    def test_wrong_type(self):
+        self.assertRaisesRegex(TypeError,
+                               "Acceptable types",
+                               WrongTypesTask,
+                               self.engine, {}, "wrong")
+
+    def test_ok(self):
         defn = {"test": {"object": {"answer": [42]}}}
         task = TestTask.load("test", defn, self.engine)
         self.assertEqual({"object": {"answer": [42]}}, task.params)
-
-    def test_missing_required(self):
-        defn = {"test": {"number": 42}}
-        self.assertRaisesRegex(miniscript.InvalidDefinition,
-                               "object are required",
-                               TestTask.load,
-                               "test", defn, self.engine)
 
     def test_wrong_params(self):
         for item in [42, True, object(), "banana!"]:
@@ -103,20 +106,21 @@ class TaskLoadTestCase(unittest.TestCase):
                                TestTask.load,
                                "test", defn, self.engine)
 
+    def test_unexpected_top_level(self):
+        defn = {"test": {}, "key": 42}
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               f"Unknown top-level.*key",
+                               TestTask.load,
+                               "test", defn, self.engine)
+
     def test_wrong_top_level(self):
-        for key in ["ignore_errors", "register", "name"]:
+        for key in ["ignore_errors", "register", "name", "loop"]:
             defn = {"test": {}, key: 42}
             with self.subTest(top_level=key):
                 self.assertRaisesRegex(miniscript.InvalidDefinition,
                                        f"{key}.*must be a",
                                        TestTask.load,
                                        "test", defn, self.engine)
-
-    def test_optional_with_casting(self):
-        defn = {"test": {"object": {"answer": [42]}, "number": "42"}}
-        task = TestTask.load("test", defn, self.engine)
-        self.assertEqual({"object": {"answer": [42]}, "number": 42},
-                         task.params)
 
     def test_conditional(self):
         defn = {"test": {"object": {}}, "when": "1 == 1"}
@@ -128,26 +132,51 @@ class TaskLoadTestCase(unittest.TestCase):
         task = SingletonTask.load("singleton", defn, self.engine)
         self.assertEqual({"message": "test"}, task.params)
 
+
+class TaskValidateTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.engine = miniscript.Engine({})
+        self.context = miniscript.Context(self.engine, answer=42)
+
+    def test_validate(self):
+        defn = {"test": {"object": {"answer": [42]}, "number": "42"}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertEqual({"object": {"answer": [42]}, "number": "42"},
+                         task.params)
+        task.validate(task.params, self.context)
+        # "42" -> 42
+        self.assertEqual({"object": {"answer": [42]}, "number": 42},
+                         task.params)
+
+    def test_missing_required(self):
+        defn = {"test": {"number": 42}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertRaisesRegex(miniscript.InvalidDefinition,
+                               "object are required",
+                               task.validate, task.params, self.context)
+
     def test_unknown(self):
         defn = {"test": {"object": {}, "who_am_I": None}}
+        task = TestTask.load("test", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
                                "Parameter(s) who_am_I",
-                               TestTask.load,
-                               "test", defn, self.engine)
+                               task.validate, task.params, self.context)
 
     def test_invalid_value(self):
         defn = {"test": {"object": {}, "number": "not number"}}
+        task = TestTask.load("test", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
                                "Invalid value for parameter number",
-                               TestTask.load,
-                               "test", defn, self.engine)
+                               task.validate, task.params, self.context)
 
     def test_one_required(self):
         defn = {"optional": None}
+        task = OptionalTask.load("optional", defn, self.engine)
         self.assertRaisesRegex(miniscript.InvalidDefinition,
                                "At least one",
-                               OptionalTask.load,
-                               "optional", defn, self.engine)
+                               task.validate, task.params, self.context)
 
 
 class WhenTestCase(unittest.TestCase):
@@ -179,7 +208,8 @@ class ExecuteTestCase(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.engine = miniscript.Engine({})
-        self.context = miniscript.Context(self.engine, answer=42)
+        self.context = miniscript.Context(
+            self.engine, answer=42, items=["{{ answer }}", 43, 44])
 
     def test_normal(self):
         defn = {"test": {"object": "{{ answer }}"}}
@@ -238,6 +268,7 @@ class ExecuteTestCase(unittest.TestCase):
         self.assertTrue(result.succeeded)
         self.assertFalse(result.failed)
         self.assertIsNone(result.failure)
+        self.assertFalse(result.skipped)
 
     def test_register_with_error(self):
         defn = {"test": {"object": "{{ answer.wrong.key }}"},
@@ -249,3 +280,79 @@ class ExecuteTestCase(unittest.TestCase):
         self.assertFalse(result.succeeded)
         self.assertTrue(result.failed)
         self.assertIn("wrong", result.failure)
+        self.assertFalse(result.skipped)
+
+    def test_loop_simple(self):
+        defn = {"test": {"object": "{{ item }}"}, "loop": [1, 2, None]}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_has_calls([
+            mock.call(object=x) for x in [1, 2, None]
+        ])
+
+    def test_loop_variable(self):
+        defn = {"test": {"object": "{{ item }}"}, "loop": "{{ items }}"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_has_calls([
+            mock.call(object=x) for x in [42, 43]
+        ])
+
+    def test_loop_register(self):
+        items = [1, 2, None]
+        defn = {"test": {"object": "{{ item }}"}, "loop": items,
+                "register": "myvar"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_has_calls([
+            mock.call(object=x) for x in items
+        ])
+
+        results = self.context["myvar"]
+        self.assertEqual({"results"}, set(results))
+        self.assertEqual(3, len(results["results"]))
+        for item, value in zip(results["results"], items):
+            self.assertIsInstance(item, miniscript.Result)
+            self.assertTrue(item.succeeded)
+            self.assertFalse(item.failed)
+            self.assertFalse(item.skipped)
+            self.assertEqual(value, item.result)
+
+    def test_loop_skip(self):
+        items = [1, 2, None]
+        defn = {"test": {"object": "{{ item }}"}, "loop": items,
+                "when": "item is not none", "register": "myvar"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_has_calls([
+            mock.call(object=x) for x in [1, 2]
+        ])
+
+        results = self.context["myvar"]
+        self.assertEqual(3, len(results["results"]))
+        for item, value in zip(results["results"], items):
+            self.assertTrue(item.succeeded)
+            self.assertFalse(item.failed)
+            self.assertEqual(value is None, item.skipped)
+            self.assertIsNone(item.failure)
+
+    def test_loop_error(self):
+        items = [1, None, 2]
+        defn = {"test": {"object": "{{ item + 1 }}", "number": "{{ item }}"},
+                "loop": items, "register": "myvar", "ignore_errors": True}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_has_calls([
+            mock.call(object=x + 1) for x in [1, 2]
+        ])
+
+        results = self.context["myvar"]
+        self.assertEqual(3, len(results["results"]))
+        for item, value in zip(results["results"], items):
+            self.assertEqual(value is not None, item.succeeded)
+            self.assertEqual(value is None, item.failed)
+            self.assertFalse(item.skipped)
+            if value is None:
+                self.assertIn("a number, not 'NoneType'", item.failure)
+            else:
+                self.assertIsNone(item.failure)
