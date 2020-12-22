@@ -46,23 +46,13 @@ class FailTask(miniscript.Task):
         raise RuntimeError("I'm tired")
 
 
-class FailTask2(miniscript.Task):
-    def execute(
-        self,
-        params: typing.Dict[str, typing.Any],
-        context: miniscript.Context,
-    ) -> typing.Any:
-        raise miniscript.ExecutionFailed("I'm tired")
-
-
 class EngineTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
         self.engine = miniscript.Engine({"test": TestTask,
                                          "finish": FinishTask,
-                                         "fail": FailTask,
-                                         "fail2": FailTask2})
+                                         "fail": FailTask})
 
     def test_logger(self):
         self.assertIsInstance(self.engine.logger, logging.Logger)
@@ -128,7 +118,9 @@ class EngineTestCase(unittest.TestCase):
                                "fail.*I'm tired",
                                self.engine.execute, [{"fail": None}])
 
-    def test_execute_fail2(self):
+    @mock.patch.object(miniscript.Task, '__call__', autospec=True)
+    def test_execute_fail_unexpected(self, mock_call):
+        mock_call.side_effect = KeyError("unexpected")
         self.assertRaisesRegex(miniscript.ExecutionFailed,
-                               "^I'm tired$",
-                               self.engine.execute, [{"fail2": None}])
+                               "KeyError: 'unexpected'",
+                               self.engine.execute, [{"fail": None}])

@@ -12,6 +12,7 @@
 
 import typing
 import unittest
+from unittest import mock
 
 import miniscript
 from miniscript import _task
@@ -21,12 +22,17 @@ class TestTask(miniscript.Task):
     required_params = {"object": None}
     optional_params = {"message": str, "number": int}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.side_effect = mock.Mock()
+
     def execute(
         self,
         params: typing.Dict[str, typing.Any],
         context: miniscript.Context,
     ) -> typing.Any:
-        pass
+        self.side_effect(**params)
+        return params['object']
 
 
 class SingletonTask(miniscript.Task):
@@ -166,3 +172,81 @@ class WhenTestCase(unittest.TestCase):
         when = _task.When(self.engine, ["1 == 1", "answer == 0",
                                         "answer is defined"])
         self.assertFalse(when(self.context))
+
+
+class ExecuteTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.engine = miniscript.Engine({})
+        self.context = miniscript.Context(self.engine, answer=42)
+
+    def test_normal(self):
+        defn = {"test": {"object": "{{ answer }}"}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_called_once_with(object=42)
+
+    def test_when_passed(self):
+        defn = {"test": {"object": "{{ answer }}"},
+                "when": "answer == 42"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_called_once_with(object=42)
+
+    def test_when_not_passed(self):
+        defn = {"test": {"object": "{{ answer }}"},
+                "when": "answer is undefined or answer != 42"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        task.side_effect.assert_not_called()
+
+    def test_when_failed(self):
+        defn = {"test": {"object": "{{ answer }}"},
+                "when": "answer.wrong.key == 42"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "Failed to evaluate condition for test",
+                               task, self.context)
+        task.side_effect.assert_not_called()
+
+    def test_execution_failed(self):
+        defn = {"test": {"object": "{{ answer.wrong.key }}"}}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "Failed to execute task",
+                               task, self.context)
+        task.side_effect.assert_not_called()
+
+    def test_ignore_errors(self):
+        defn = {"test": {"object": "{{ answer.wrong.key }}"},
+                "ignore_errors": True}
+        task = TestTask.load("test", defn, self.engine)
+        with mock.patch.object(self.engine.logger, 'warning',
+                               autospec=True) as mock_log:
+            self.assertIsNone(task(self.context))
+            mock_log.assert_called_once()
+        task.side_effect.assert_not_called()
+
+    def test_register(self):
+        defn = {"test": {"object": "{{ answer }}"}, "register": "varname"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        result = self.context['varname']
+        self.assertIsInstance(result, miniscript.Result)
+        self.assertEqual(42, result.result)
+        self.assertTrue(result.succeeded)
+        self.assertFalse(result.failed)
+        self.assertIsNone(result.failure)
+
+    def test_register_with_error(self):
+        defn = {"test": {"object": "{{ answer.wrong.key }}"},
+                "ignore_errors": True, "register": "varname"}
+        task = TestTask.load("test", defn, self.engine)
+        self.assertIsNone(task(self.context))
+        result = self.context['varname']
+        self.assertIsInstance(result, miniscript.Result)
+        self.assertIsNone(result.result)
+        self.assertFalse(result.succeeded)
+        self.assertTrue(result.failed)
+        self.assertIn("wrong", result.failure)

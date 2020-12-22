@@ -13,10 +13,10 @@
 import abc
 import typing
 
+from . import _context
 from . import _types
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from . import _context
     from . import _engine
 
 
@@ -196,16 +196,17 @@ class Task(metaclass=abc.ABCMeta):
 
     def __call__(self, context: '_context.Context') -> None:
         """Check conditions and execute the task in the context."""
-        if self.when is not None and not self.when(context):
-            self.engine.logger.debug("Task %s is skipped", self.name)
-
         try:
-            params = self.engine.environment.evaluate_recursive(
-                self.params, context)
+            if self.when is not None and not self.when(context):
+                self.engine.logger.debug("Task %s is skipped", self.name)
+                return
         except Exception as exc:
             raise _types.ExecutionFailed(
-                f"Failed to evaluate parameters for {self.name}. "
+                f"Failed to evaluate condition for {self.name}. "
                 f"{exc.__class__.__name__}: {exc}")
+
+        params = _context.Namespace(self.engine.environment, context,
+                                    self.params)
 
         try:
             value = self.execute(params, context)
@@ -215,7 +216,9 @@ class Task(metaclass=abc.ABCMeta):
                                            self.name, exc)
                 result = Result(None, f"{exc.__class__.__name__}: {exc}")
             else:
-                raise
+                raise _types.ExecutionFailed(
+                    f"Failed to execute task {self.name}. "
+                    f"{exc.__class__.__name__}: {exc}")
         else:
             result = Result(value)
 

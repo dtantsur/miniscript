@@ -77,7 +77,8 @@ class Script:
                 self.engine.logger.error("Execution failed: %s", exc)
                 raise
             except Exception as exc:
-                msg = f"{exc.__class__.__name__} in {item.name}: {exc}"
+                msg = (f"Failed to execute task {item.name}. "
+                       f"{exc.__class__.__name__}: {exc}")
                 self.engine.logger.error("Execution failed: %s", msg)
                 raise _types.ExecutionFailed(msg)
 
