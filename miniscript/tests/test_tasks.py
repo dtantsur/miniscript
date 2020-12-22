@@ -92,3 +92,20 @@ class TasksTestCase(unittest.TestCase):
         ]}
         task = tasks.Block.load("block", defn, self.engine)
         task(self.context)
+
+    def test_log(self):
+        for call in ("debug", "info", "warning", "error"):
+            with self.subTest(call=call):
+                defn = {"log": {call: "The answer was {{ answer }}"}}
+                task = tasks.Log.load("log", defn, self.engine)
+                with mock.patch.object(self.engine.logger, call,
+                                       autospec=True) as mock_log:
+                    task(self.context)
+                    mock_log.assert_called_once_with("The answer was 42")
+
+    def test_vars(self):
+        defn = {"vars": {"next": "{{ answer + 1 }}", "cat": "orange"}}
+        task = tasks.Vars.load("vars", defn, self.engine)
+        task(self.context)
+        self.assertEqual(43, self.context["next"])
+        self.assertEqual("orange", self.context["cat"])
