@@ -1,0 +1,33 @@
+---
+tasks:
+  - log:
+      info: "we are starting"
+
+  - vars:
+      answer: 42
+      random: 13
+
+  - block:
+      - log:
+          warning: "be annoying!"
+      - fail: "I'm tired, buy"
+    when:
+      - die_fast is defined
+      - die_fast
+
+  - log:
+      debug: "We have survived because die fast is {{ die_fast }}"
+
+  - vars:
+      smart_encryption: "{{ answer * random }}"
+    when: random > 0
+
+  - fail:
+      msg: "We did something wrong"
+    when: smart_encryption == answer
+
+  - log:
+      info: "we are leaving"
+
+  - name: "Returning the value"
+    return: "{{ smart_encryption / random }}"

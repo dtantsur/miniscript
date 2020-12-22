@@ -39,3 +39,15 @@ class TestFromDocs(unittest.TestCase):
         engine = miniscript.Engine({'add': AddTask})
         result = engine.execute(code)
         self.assertEqual(90131, result)
+
+
+class TestLongWithBuiltins(unittest.TestCase):
+    """A test exercising built-ins a bit."""
+
+    def test(self):
+        with open('miniscript/tests/example-large.yaml') as fp:
+            code = yaml.safe_load(fp)
+
+        engine = miniscript.Engine({})
+        result = engine.execute(code)
+        self.assertEqual(42, result)
