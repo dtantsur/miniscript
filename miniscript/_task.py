@@ -25,13 +25,13 @@ class Result:
 
     def __init__(
         self,
-        result: typing.Any,
+        results: typing.Mapping[str, typing.Any],
         failure: typing.Optional[str] = None,
     ):
+        self.__dict__.update(results)
         self.succeeded = failure is None
         self.failed = not self.succeeded
         self.failure = failure
-        self.result = result
 
 
 class When:
@@ -209,12 +209,12 @@ class Task(metaclass=abc.ABCMeta):
                                     self.params)
 
         try:
-            value = self.execute(params, context)
+            values = self.execute(params, context)
         except Exception as exc:
             if self.ignore_errors:
                 self.engine.logger.warning("Task %s failed: %s (ignoring)",
                                            self.name, exc)
-                result = Result(None, f"{exc.__class__.__name__}: {exc}")
+                result = Result({}, f"{exc.__class__.__name__}: {exc}")
             else:
                 if isinstance(exc, _types.Aborted):
                     msg = f"Execution aborted: {exc}"
@@ -223,7 +223,7 @@ class Task(metaclass=abc.ABCMeta):
                            f"{exc.__class__.__name__}: {exc}")
                 raise _types.ExecutionFailed(msg)
         else:
-            result = Result(value)
+            result = Result(values or {})
 
         if self.register is not None:
             context[self.register] = result
@@ -233,7 +233,7 @@ class Task(metaclass=abc.ABCMeta):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: '_context.Context',
-    ) -> typing.Any:
+    ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         """Execute the task.
 
         :returns: The value stored as a result in ``register`` is set.

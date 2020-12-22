@@ -24,7 +24,7 @@ class TestTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> None:
         context["answer"] = 42
 
 
@@ -33,7 +33,7 @@ class FinishTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> None:
         raise _types.FinishScript(42)
 
 
@@ -42,7 +42,7 @@ class FailTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> None:
         raise RuntimeError("I'm tired")
 
 

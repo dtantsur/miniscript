@@ -30,9 +30,9 @@ class TestTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         self.side_effect(object=params['object'])
-        return params['object']
+        return {'result': params['object']}
 
 
 class SingletonTask(miniscript.Task):
@@ -43,7 +43,7 @@ class SingletonTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> None:
         pass
 
 
@@ -59,7 +59,7 @@ class OptionalTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> None:
         pass
 
 
@@ -246,7 +246,6 @@ class ExecuteTestCase(unittest.TestCase):
         self.assertIsNone(task(self.context))
         result = self.context['varname']
         self.assertIsInstance(result, miniscript.Result)
-        self.assertIsNone(result.result)
         self.assertFalse(result.succeeded)
         self.assertTrue(result.failed)
         self.assertIn("wrong", result.failure)

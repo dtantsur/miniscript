@@ -31,7 +31,7 @@ class TestTask(miniscript.Task):
         self,
         params: typing.MutableMapping[str, typing.Any],
         context: miniscript.Context,
-    ) -> typing.Any:
+    ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         self.side_effect(object=params['object'])
         return params['object']
 
