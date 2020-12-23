@@ -13,16 +13,6 @@
 import typing
 
 
-JsonType = typing.Union[
-    typing.Dict[str, typing.Any],
-    typing.List,
-    str,
-    int,
-    bool,
-    None
-]
-
-
 class Error(Exception):
     """Base class for all errors."""
 
