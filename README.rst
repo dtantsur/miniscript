@@ -14,8 +14,9 @@ Framework for embedded scripting using JSON-compatible structures and
 Ansible-like syntax.
 
 .. note::
-   While MiniScript is heavily inspired by Ansible, we are not aiming for
-   perfect compatibility and do diverge in a few aspects.
+   While MiniScript is heavily inspired by Ansible, it does not use Ansible
+   directly, nor does it import any Ansible code. We are also not aiming for
+   perfect compatibility and do diverge in some aspects.
 
 * Documentation: https://miniscript.readthedocs.io
 * Source: https://github.com/dtantsur/miniscript
