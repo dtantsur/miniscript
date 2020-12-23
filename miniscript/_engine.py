@@ -126,14 +126,21 @@ class Engine:
         import miniscript
 
         class AddTask(miniscript.Task):
+            '''A task implementing addition.'''
+
             required_params = {'values': list}
+            '''One required parameter - a list of values.'''
             singleton_param = 'values'
+            '''Can be supplied without an explicit "values".'''
 
             def validate(self, params, context):
+                '''Validate the parameters.'''
+                super().validate(params, context)
                 for item in params['values']:
                     int(item)
 
             def execute(self, params, context):
+                '''Execute the action, return a "sum" value.'''
                 return {"sum": sum(params['values'])}
 
         engine = miniscript.Engine({'add': AddTask})
@@ -151,11 +158,13 @@ class Engine:
     .. code-block:: yaml
 
         ---
-        - name: add some values
-          add:
-            - 23423
-            - 43874
-            - 22834
+        - name: only accept positive integers
+          fail: "{{ item }} must be positive"
+          when: item <= 0
+          loop: "{{ values }}"
+
+        - name: add the provided values
+          add: "{{ values }}"
           register: result
 
         - name: log the result
@@ -174,7 +183,11 @@ class Engine:
         with open("script.yaml") as fp:
             code = yaml.safe_load(fp)
 
-        result = engine.execute(code)  # result == 90131
+        # The context holds all variables.
+        context = miniscript.Context(engine, values=[23423, 43874, 22834])
+
+        # Unlike Ansible, MiniScript can return a result!
+        result = engine.execute(code, context)  # result == 90131
     """
 
     tasks: typing.Dict[str, typing.Type[_task.Task]]

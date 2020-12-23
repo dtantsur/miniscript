@@ -37,7 +37,8 @@ class TestFromDocs(unittest.TestCase):
             code = yaml.safe_load(fp)
 
         engine = miniscript.Engine({'add': AddTask})
-        result = engine.execute(code)
+        context = miniscript.Context(engine, values=[23423, 43874, 22834])
+        result = engine.execute(code, context)
         self.assertEqual(90131, result)
 
 

@@ -1,9 +1,11 @@
 ---
-- name: add some values
-  add:
-    - 23423
-    - 43874
-    - 22834
+- name: only accept positive integers
+  fail: "{{ item }} must be positive"
+  when: item <= 0
+  loop: "{{ values }}"
+
+- name: add the provided values
+  add: "{{ values }}"
   register: result
 
 - name: log the result
