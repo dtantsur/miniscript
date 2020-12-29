@@ -16,6 +16,7 @@ import typing
 from . import _context
 from . import _task
 from . import _types
+from . import filters
 from . import tasks
 
 
@@ -102,6 +103,10 @@ _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
     "vars": tasks.Vars,
 }
 
+_FILTERS: typing.Dict[str, typing.Callable] = {
+    name.rstrip('_'): getattr(filters, name) for name in dir(filters)
+}
+
 
 class Engine:
     """Engine that runs scripts.
@@ -109,6 +114,10 @@ class Engine:
     :param tasks: Tasks to use for this engine, see :attr:`Engine.tasks`.
     :param logger: Logger to use for all logging. If `None`, a default one
         is created.
+    :param additional_filters: If `True`, additional Ansible-compatible filters
+        from :mod:`miniscript.filters` are enabled.
+
+        .. versionadded:: 1.1
     :raises: ValueError on tasks conflicting with built-in parameters, see
         :class:`Task`.
 
@@ -209,6 +218,7 @@ class Engine:
         self,
         tasks: typing.Dict[str, typing.Type[_task.Task]],
         logger: typing.Optional[logging.Logger] = None,
+        additional_filters: bool = True,
     ) -> None:
         """Create a new engine."""
         conflict = set(tasks).intersection(_task.Task._KNOWN_PARAMETERS)
@@ -222,6 +232,8 @@ class Engine:
             logger = logging.getLogger('miniscript')
         self.logger = logger
         self.environment = _context.Environment()
+        if additional_filters:
+            self.environment.filters.update(_FILTERS)
 
     def execute(
         self,

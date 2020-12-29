@@ -66,6 +66,10 @@ class EngineTestCase(unittest.TestCase):
                 self.assertRaises(ValueError, miniscript.Engine,
                                   {name: TestTask})
 
+    def test_no_additional_filters(self):
+        engine = miniscript.Engine({}, additional_filters=False)
+        self.assertNotIn('dict2items', engine.environment.filters)
+
     def test_tasks_required(self):
         self.assertRaisesRegex(miniscript.InvalidScript,
                                "task is required",

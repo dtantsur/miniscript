@@ -24,6 +24,11 @@ Built-in tasks
              free_form, allow_empty
    :exclude-members: execute, validate
 
+Built-in filters
+----------------
+
+.. automodule:: miniscript.filters
+
 Errors
 ------
 
