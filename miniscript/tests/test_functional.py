@@ -22,6 +22,7 @@ class AddTask(miniscript.Task):
     singleton_param = 'values'
 
     def validate(self, params, context):
+        super().validate(params, context)
         for item in params['values']:
             int(item)
 
