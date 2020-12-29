@@ -20,6 +20,7 @@
    require licensing your code under GPL (the license Ansible uses).
 """
 
+from collections import abc as abcoll
 import itertools
 import typing
 
@@ -42,6 +43,93 @@ def bool_(value: typing.Any) -> bool:
         return value == 1
     else:
         return False
+
+
+def _combine_lists(
+    first: typing.Sequence,
+    second: typing.Sequence,
+    list_merge: str,
+) -> typing.Sequence:
+    if list_merge == 'replace':
+        return second
+    elif list_merge == 'keep':
+        return first
+    elif list_merge == 'append':
+        return list(itertools.chain(first, second))
+    elif list_merge == 'prepend':
+        return list(itertools.chain(second, first))
+    else:
+        first = [item for item in first if item not in set(second)]
+        if list_merge == 'append_rp':
+            return list(itertools.chain(first, second))
+        else:
+            return list(itertools.chain(second, first))
+
+
+def _combine_dicts(
+    first: typing.Mapping,
+    second: typing.Mapping,
+    recursive: bool = False,
+    list_merge: str = 'replace',
+) -> typing.Dict:
+    result = dict(first)
+
+    for key, value in second.items():
+        try:
+            existing = result[key]
+        except KeyError:
+            pass
+        else:
+            if (recursive and isinstance(existing, abcoll.MutableMapping)
+                    and isinstance(value, abcoll.Mapping)):
+                value = _combine_dicts(existing, value)
+            elif (isinstance(existing, abcoll.Sequence)
+                    and isinstance(value, abcoll.Sequence)):
+                value = _combine_lists(existing, value, list_merge)
+
+        result[key] = value
+
+    return result
+
+
+_VALID_LIST_MERGE = frozenset(['replace', 'keep', 'append', 'prepend',
+                               'append_rp', 'prepend_rp'])
+
+
+def combine(
+    value: typing.Union[typing.Sequence[typing.Mapping], typing.Mapping],
+    *other: typing.Mapping,
+    recursive: bool = False,
+    list_merge: str = 'replace',
+) -> typing.Dict:
+    """Combine several dictionaries into one.
+
+    .. versionadded:: 1.1
+
+    :param recursive: Whether to merge dictionaries recursively.
+    :param list_merge: How to merge lists, one of ``replace``, ``keep``,
+        ``append``, ``prepend``, ``append_rp``, ``prepend_rp``. The ``_rp``
+        variants remove items that are present in both lists from the left-hand
+        list.
+    """
+    if list_merge not in _VALID_LIST_MERGE:
+        raise TypeError(f"'{list_merge}' is not a valid list_merge value, "
+                        f"valid are {', '.join(_VALID_LIST_MERGE)}")
+
+    if not isinstance(value, abcoll.Sequence):
+        value = [value]
+
+    try:
+        first, *reminder = itertools.chain(value, other)
+    except ValueError:
+        return {}
+
+    result = dict(first)
+    for item in reminder:
+        result = _combine_dicts(result, item, recursive=recursive,
+                                list_merge=list_merge)
+
+    return result
 
 
 def dict2items(
