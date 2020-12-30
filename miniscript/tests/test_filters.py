@@ -11,8 +11,10 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import miniscript
+from miniscript import filters
 
 
 class TestFilters(unittest.TestCase):
@@ -182,6 +184,23 @@ class TestFilters(unittest.TestCase):
             "in_list | items2dict(key_name='item',value_name='qty')",
             in_list=in_list)
         self.assertEqual({"milk": 1, "eggs": 10}, result)
+
+    @mock.patch.object(filters, 'jmespath', None)
+    def test_json_query_unavailable(self):
+        self.assertRaisesRegex(RuntimeError,
+                               "requires jmespath",
+                               self.eval,
+                               "[] | json_query('[]')")
+
+    def test_json_query(self):
+        in_list = [
+            {"name": "salad", "ingredients": {"tomatoes": 1, "cucumbers": 2}},
+            {"name": "omelette", "ingredients": {"eggs": 3, "dill": 1}}
+        ]
+        result = self.eval(
+            "in_list | json_query('[?ingredients.tomatoes > `0`] | [].name')",
+            in_list=in_list)
+        self.assertEqual(["salad"], result)
 
     def test_zip(self):
         qtys = [10, 1]

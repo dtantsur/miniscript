@@ -104,7 +104,7 @@ _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
 }
 
 _FILTERS: typing.Dict[str, typing.Callable] = {
-    name.rstrip('_'): getattr(filters, name) for name in dir(filters)
+    name.rstrip('_'): getattr(filters, name) for name in filters.__all__
 }
 
 

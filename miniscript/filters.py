@@ -24,8 +24,16 @@ from collections import abc as abcoll
 import itertools
 import typing
 
+try:
+    import jmespath  # type: ignore
+except ImportError:  # pragma: no cover
+    jmespath = None
+
 
 _TRUE_VALUES = frozenset(['yes', 'true', '1'])
+
+__all__ = ['bool_', 'combine', 'dict2items', 'items2dict', 'json_query',
+           'zip_', 'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -202,6 +210,18 @@ def items2dict(
     :returns: A dictionary.
     """
     return {item[key_name]: item[value_name] for item in value}
+
+
+def json_query(value: typing.Any, query: str) -> typing.Any:
+    """Run a JSON query against the data.
+
+    Requires the `jmespath <https://pypi.org/project/jmespath/>`_ library.
+    See `jmespath examples <https://jmespath.org/examples.html>`_.
+    """
+    if jmespath is None:
+        raise RuntimeError("The json_query filter requires jmespath "
+                           "python package to be installed")
+    return jmespath.search(query, value)
 
 
 def zip_(first: typing.Sequence, *other: typing.Sequence) -> typing.Iterator:
