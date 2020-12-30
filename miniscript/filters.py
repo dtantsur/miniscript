@@ -17,11 +17,14 @@ try:
 except ImportError:  # pragma: no cover
     jmespath = None
 
+from . import _utils
+
 
 _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 
-__all__ = ['bool_', 'combine', 'dict2items', 'items2dict', 'json_query',
-           'zip_', 'zip_longest']
+__all__ = ['bool_', 'combine', 'dict2items',
+           'ipaddr', 'ipv4', 'ipv6', 'items2dict',
+           'json_query', 'zip_', 'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -41,57 +44,6 @@ def bool_(value: typing.Any) -> bool:
         return False
 
 
-def _combine_lists(
-    first: typing.Sequence,
-    second: typing.Sequence,
-    list_merge: str,
-) -> typing.Sequence:
-    if list_merge == 'replace':
-        return second
-    elif list_merge == 'keep':
-        return first
-    elif list_merge == 'append':
-        return list(itertools.chain(first, second))
-    elif list_merge == 'prepend':
-        return list(itertools.chain(second, first))
-    else:
-        first = [item for item in first if item not in set(second)]
-        if list_merge == 'append_rp':
-            return list(itertools.chain(first, second))
-        else:
-            return list(itertools.chain(second, first))
-
-
-def _combine_dicts(
-    first: typing.Mapping,
-    second: typing.Mapping,
-    recursive: bool = False,
-    list_merge: str = 'replace',
-) -> typing.Dict:
-    result = dict(first)
-
-    for key, value in second.items():
-        try:
-            existing = result[key]
-        except KeyError:
-            pass
-        else:
-            if (recursive and isinstance(existing, abcoll.MutableMapping)
-                    and isinstance(value, abcoll.Mapping)):
-                value = _combine_dicts(existing, value)
-            elif (isinstance(existing, abcoll.Sequence)
-                    and isinstance(value, abcoll.Sequence)):
-                value = _combine_lists(existing, value, list_merge)
-
-        result[key] = value
-
-    return result
-
-
-_VALID_LIST_MERGE = frozenset(['replace', 'keep', 'append', 'prepend',
-                               'append_rp', 'prepend_rp'])
-
-
 def combine(
     value: typing.Union[typing.Sequence[typing.Mapping], typing.Mapping],
     *other: typing.Mapping,
@@ -108,9 +60,9 @@ def combine(
         variants remove items that are present in both lists from the left-hand
         list.
     """
-    if list_merge not in _VALID_LIST_MERGE:
+    if list_merge not in _utils.VALID_LIST_MERGE:
         raise TypeError(f"'{list_merge}' is not a valid list_merge value, "
-                        f"valid are {', '.join(_VALID_LIST_MERGE)}")
+                        f"valid are {', '.join(_utils.VALID_LIST_MERGE)}")
 
     if not isinstance(value, abcoll.Sequence):
         value = [value]
@@ -122,8 +74,8 @@ def combine(
 
     result = dict(first)
     for item in reminder:
-        result = _combine_dicts(result, item, recursive=recursive,
-                                list_merge=list_merge)
+        result = _utils.combine_dicts(result, item, recursive=recursive,
+                                      list_merge=list_merge)
 
     return result
 
@@ -162,6 +114,42 @@ def dict2items(
     :returns: A list of dicts.
     """
     return [{key_name: key, value_name: value} for key, value in value.items()]
+
+
+def ipaddr(
+    value: typing.Union[str, int],
+    query: typing.Optional[str] = None,
+) -> str:
+    """Filter IP addresses and networks.
+
+    Implements Ansible `ipaddr filter
+    <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
+    """
+    return _utils.ip_filter(value, query=query)
+
+
+def ipv4(
+    value: typing.Union[str, int],
+    query: typing.Optional[str] = None,
+) -> str:
+    """Filter IPv4 addresses and networks.
+
+    Implements Ansible `ipv4 filter
+    <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
+    """
+    return _utils.ip_filter(value, version=4, query=query)
+
+
+def ipv6(
+    value: typing.Union[str, int],
+    query: typing.Optional[str] = None,
+) -> str:
+    """Filter IPv6 addresses and networks.
+
+    Implements Ansible `ipv6 filter
+    <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
+    """
+    return _utils.ip_filter(value, version=6, query=query)
 
 
 def items2dict(

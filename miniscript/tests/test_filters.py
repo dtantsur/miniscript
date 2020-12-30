@@ -159,6 +159,30 @@ class TestFilters(unittest.TestCase):
                           {"item": "milk", "qty": 1}],
                          result)
 
+    def test_ipaddr(self):
+        result = self.eval(
+            "'192.168.35.1/24' | ipaddr('private') | ipaddr('address')")
+        self.assertEqual('192.168.35.1', result)
+        result = self.eval(
+            "'2001:db8:32c::1/64' | ipaddr('private') | ipaddr('address')")
+        self.assertEqual('2001:db8:32c::1', result)
+
+    def test_ipv4(self):
+        result = self.eval(
+            "'192.168.35.1/24' | ipv4('private') | ipv4('address')")
+        self.assertEqual('192.168.35.1', result)
+        result = self.eval(
+            "'2001:db8:32c::1/64' | ipv4('private') | ipv4('address')")
+        self.assertIs(False, result)
+
+    def test_ipv6(self):
+        result = self.eval(
+            "'192.168.35.1/24' | ipv6('private') | ipv6('address')")
+        self.assertIs(False, result)
+        result = self.eval(
+            "'2001:db8:32c::1/64' | ipv6('private') | ipv6('address')")
+        self.assertEqual('2001:db8:32c::1', result)
+
     def test_items2dict(self):
         in_list = [{"key": "eggs", "value": 10},
                    {"key": "milk", "value": 1}]
