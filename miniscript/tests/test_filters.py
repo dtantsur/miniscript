@@ -159,6 +159,16 @@ class TestFilters(unittest.TestCase):
                           {"item": "milk", "qty": 1}],
                          result)
 
+    def test_flatten(self):
+        in_list = [1, 2, [3, [4, 5, [6]], 7]]
+        result = self.eval("in_list | flatten", in_list=in_list)
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7], result)
+
+    def test_flatten_levels(self):
+        in_list = [1, 2, [3, [4, 5, [6]], 7]]
+        result = self.eval("in_list | flatten(levels=1)", in_list=in_list)
+        self.assertEqual([1, 2, 3, [4, 5, [6]], 7], result)
+
     def test_ipaddr(self):
         result = self.eval(
             "'192.168.35.1/24' | ipaddr('private') | ipaddr('address')")

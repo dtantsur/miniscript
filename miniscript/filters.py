@@ -22,7 +22,7 @@ from . import _utils
 
 _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 
-__all__ = ['bool_', 'combine', 'dict2items',
+__all__ = ['bool_', 'combine', 'dict2items', 'flatten',
            'ipaddr', 'ipv4', 'ipv6', 'items2dict',
            'json_query', 'zip_', 'zip_longest']
 
@@ -114,6 +114,17 @@ def dict2items(
     :returns: A list of dicts.
     """
     return [{key_name: key, value_name: value} for key, value in value.items()]
+
+
+def flatten(
+    value: typing.List,
+    levels: typing.Optional[int] = None
+) -> typing.List:
+    """Flatten a list.
+
+    :param levels: Number of levels to flatten. If `None` - flatten everything.
+    """
+    return list(_utils.flatten(value, levels=levels))
 
 
 def ipaddr(

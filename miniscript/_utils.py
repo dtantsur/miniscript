@@ -133,3 +133,18 @@ def ip_filter(value, query=None, version=None):
         return list(filter(None, result))
     else:
         return False
+
+
+def flatten(
+    value: typing.Iterable,
+    levels: typing.Optional[int] = None
+) -> typing.Iterable:
+    if levels == 0:
+        return value
+
+    iterables = (
+        flatten(x, levels=(None if levels is None else levels - 1))
+        if isinstance(x, list) else (x,)
+        for x in value
+    )
+    return itertools.chain.from_iterable(iterables)
