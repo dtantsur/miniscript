@@ -122,6 +122,8 @@ def flatten(
 ) -> typing.List:
     """Flatten a list.
 
+    .. versionadded:: 1.1
+
     :param levels: Number of levels to flatten. If `None` - flatten everything.
     """
     return list(_utils.flatten(value, levels=levels))
@@ -132,6 +134,8 @@ def ipaddr(
     query: typing.Optional[str] = None,
 ) -> str:
     """Filter IP addresses and networks.
+
+    .. versionadded:: 1.1
 
     Implements Ansible `ipaddr filter
     <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
@@ -145,6 +149,8 @@ def ipv4(
 ) -> str:
     """Filter IPv4 addresses and networks.
 
+    .. versionadded:: 1.1
+
     Implements Ansible `ipv4 filter
     <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
     """
@@ -156,6 +162,8 @@ def ipv6(
     query: typing.Optional[str] = None,
 ) -> str:
     """Filter IPv6 addresses and networks.
+
+    .. versionadded:: 1.1
 
     Implements Ansible `ipv6 filter
     <https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters_ipaddr.html>`_.
