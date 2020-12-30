@@ -21,4 +21,4 @@ Ansible-like syntax.
 * Documentation: https://miniscript.readthedocs.io
 * Source: https://github.com/dtantsur/miniscript
 * Author: `Dmitry Tantsur <https://owlet.today>`_
-* License: Apache 2.0
+* License: BSD (3-clause)
