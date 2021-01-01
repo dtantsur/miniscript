@@ -169,6 +169,16 @@ class TestFilters(unittest.TestCase):
         result = self.eval("in_list | flatten(levels=1)", in_list=in_list)
         self.assertEqual([1, 2, 3, [4, 5, [6]], 7], result)
 
+    def test_difference(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | difference([3, 6, 9, 12, 15])")
+        self.assertCountEqual([2, 4, 8], result)
+
+    def test_intersect(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | intersect([3, 6, 9, 12, 15])")
+        self.assertCountEqual([6, 12], result)
+
     def test_ipaddr(self):
         result = self.eval(
             "'192.168.35.1/24' | ipaddr('private') | ipaddr('address')")
@@ -315,6 +325,16 @@ class TestFilters(unittest.TestCase):
             "username": "user"
         }
         self.assertEqual(expected, result)
+
+    def test_symmetric_difference(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15])")
+        self.assertCountEqual([2, 3, 4, 8, 9, 15], result)
+
+    def test_union(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | union([3, 6, 9, 12, 15])")
+        self.assertCountEqual([2, 3, 4, 6, 8, 9, 12, 15], result)
 
     def test_urlsplit_component(self):
         url = ("http://user:password@www.acme.com:9000/dir/index.html"

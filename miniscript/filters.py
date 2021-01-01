@@ -24,10 +24,10 @@ from . import _utils
 
 _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 
-__all__ = ['bool_', 'combine', 'dict2items', 'flatten',
-           'ipaddr', 'ipv4', 'ipv6', 'items2dict', 'json_query',
-           'regex_escape', 'regex_findall', 'regex_replace',
-           'regex_search', 'urlsplit', 'zip_', 'zip_longest']
+__all__ = ['bool_', 'combine', 'dict2items', 'difference', 'flatten',
+           'intersect', 'ipaddr', 'ipv4', 'ipv6', 'items2dict', 'json_query',
+           'regex_escape', 'regex_findall', 'regex_replace', 'regex_search',
+           'symmetric_difference', 'union', 'urlsplit', 'zip_', 'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -83,6 +83,14 @@ def combine(
     return result
 
 
+def difference(value: list, other: list) -> list:
+    """Set difference of two lists.
+
+    .. versionadded:: 1.1
+    """
+    return list(set(value).difference(other))
+
+
 def dict2items(
     value: typing.Mapping,
     key_name: str = 'key',
@@ -120,9 +128,9 @@ def dict2items(
 
 
 def flatten(
-    value: typing.List,
+    value: list,
     levels: typing.Optional[int] = None
-) -> typing.List:
+) -> list:
     """Flatten a list.
 
     .. versionadded:: 1.1
@@ -130,6 +138,14 @@ def flatten(
     :param levels: Number of levels to flatten. If `None` - flatten everything.
     """
     return list(_utils.flatten(value, levels=levels))
+
+
+def intersect(value: list, other: list) -> list:
+    """Set intersection of two lists.
+
+    .. versionadded:: 1.1
+    """
+    return list(set(value).intersection(other))
 
 
 def ipaddr(
@@ -294,6 +310,22 @@ def regex_search(
     flags = _utils.regex_flags(multiline, ignorecase)
     match = re.search(pattern, value, flags=flags)
     return match.group(0) if match is not None else ""
+
+
+def symmetric_difference(value: list, other: list) -> list:
+    """Set symmetric difference of two lists.
+
+    .. versionadded:: 1.1
+    """
+    return list(set(value).symmetric_difference(other))
+
+
+def union(value: list, other: list) -> list:
+    """Set union of two lists.
+
+    .. versionadded:: 1.1
+    """
+    return list(set(value).union(other))
 
 
 _URL_COMPONENTS = frozenset(['fragment', 'hostname', 'netloc', 'password',
