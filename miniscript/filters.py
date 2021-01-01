@@ -9,6 +9,7 @@
 """
 
 from collections import abc as abcoll
+import datetime
 import itertools
 import re
 import typing
@@ -27,7 +28,8 @@ _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 __all__ = ['bool_', 'combine', 'dict2items', 'difference', 'flatten',
            'intersect', 'ipaddr', 'ipv4', 'ipv6', 'items2dict', 'json_query',
            'regex_escape', 'regex_findall', 'regex_replace', 'regex_search',
-           'symmetric_difference', 'union', 'urlsplit', 'zip_', 'zip_longest']
+           'symmetric_difference', 'to_datetime', 'union', 'urlsplit', 'zip_',
+           'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -318,6 +320,19 @@ def symmetric_difference(value: list, other: list) -> list:
     .. versionadded:: 1.1
     """
     return list(set(value).symmetric_difference(other))
+
+
+def to_datetime(
+    value: str,
+    format: str = "%Y-%m-%d %H:%M:%S",
+) -> datetime.datetime:
+    """Parse a date/time according to the format.
+
+    The default format is ``%Y-%m-%d %H:%M:%S``.
+
+    .. versionadded:: 1.1
+    """
+    return datetime.datetime.strptime(value, format)
 
 
 def union(value: list, other: list) -> list:

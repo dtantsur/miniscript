@@ -331,6 +331,12 @@ class TestFilters(unittest.TestCase):
             "[2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15])")
         self.assertCountEqual([2, 3, 4, 8, 9, 15], result)
 
+    def test_to_datetime(self):
+        result = self.eval(
+            "(('2020-12-31 23:59:59' | to_datetime)"
+            "- ('12/01/2020' | to_datetime('%m/%d/%Y'))).days")
+        self.assertEqual(30, result)
+
     def test_union(self):
         result = self.eval(
             "[2, 4, 6, 8, 12] | union([3, 6, 9, 12, 15])")
