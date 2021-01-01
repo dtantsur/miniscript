@@ -299,6 +299,35 @@ class TestFilters(unittest.TestCase):
             "'CatcatCAT' | regex_search('cat')")
         self.assertEqual('cat', result)
 
+    def test_urlsplit(self):
+        url = ("http://user:password@www.acme.com:9000/dir/index.html"
+               "?query=term#fragment")
+        result = self.eval(f"'{url}' | urlsplit")
+        expected = {
+            "fragment": "fragment",
+            "hostname": "www.acme.com",
+            "netloc": "user:password@www.acme.com:9000",
+            "password": "password",
+            "path": "/dir/index.html",
+            "port": 9000,
+            "query": "query=term",
+            "scheme": "http",
+            "username": "user"
+        }
+        self.assertEqual(expected, result)
+
+    def test_urlsplit_component(self):
+        url = ("http://user:password@www.acme.com:9000/dir/index.html"
+               "?query=term#fragment")
+        result = self.eval(f"'{url}' | urlsplit('netloc')")
+        self.assertEqual("user:password@www.acme.com:9000", result)
+
+    def test_urlsplit_unknown(self):
+        self.assertRaisesRegex(AttributeError,
+                               "Unknown URL component 'banana'",
+                               self.eval,
+                               "'http://example.com' | urlsplit('banana')")
+
     def test_zip(self):
         qtys = [10, 1]
         result = self.eval(

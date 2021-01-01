@@ -12,6 +12,7 @@ from collections import abc as abcoll
 import itertools
 import re
 import typing
+from urllib import parse as urlparse
 
 try:
     import jmespath  # type: ignore
@@ -26,7 +27,7 @@ _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 __all__ = ['bool_', 'combine', 'dict2items', 'flatten',
            'ipaddr', 'ipv4', 'ipv6', 'items2dict', 'json_query',
            'regex_escape', 'regex_findall', 'regex_replace',
-           'regex_search', 'zip_', 'zip_longest']
+           'regex_search', 'urlsplit', 'zip_', 'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -293,6 +294,38 @@ def regex_search(
     flags = _utils.regex_flags(multiline, ignorecase)
     match = re.search(pattern, value, flags=flags)
     return match.group(0) if match is not None else ""
+
+
+_URL_COMPONENTS = frozenset(['fragment', 'hostname', 'netloc', 'password',
+                             'username', 'path', 'port', 'query', 'scheme'])
+
+
+def urlsplit(
+    value: str,
+    query: typing.Optional[str] = None,
+) -> typing.Union[typing.Dict, str]:
+    """Split a URL into components.
+
+    Known components are fragment, hostname, netloc, password, path, port,
+    query, scheme, username.
+
+    .. versionadded:: 1.1
+
+    :param query: Requested component. If `None`, all components are returned
+        in a dictionary.
+    """
+    parsed = urlparse.urlsplit(value)
+    if query is not None:
+        # Don't do getattr(parsed, query), risk exposing internal attributes!
+        if query not in _URL_COMPONENTS:
+            raise AttributeError(f"Unknown URL component '{query}'")
+
+        return getattr(parsed, query)
+    else:
+        return {
+            item: getattr(parsed, item)
+            for item in _URL_COMPONENTS
+        }
 
 
 def zip_(first: typing.Sequence, *other: typing.Sequence) -> typing.Iterator:
