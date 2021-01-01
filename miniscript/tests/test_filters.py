@@ -224,6 +224,81 @@ class TestFilters(unittest.TestCase):
             in_list=in_list)
         self.assertEqual(["salad"], result)
 
+    def test_regex_escape(self):
+        result = self.eval("'http://www.python.org' | regex_escape")
+        self.assertEqual(r"http://www\.python\.org", result)
+
+    def test_regex_findall(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_findall('(?<=\W)\w{3}(?=\W)')")
+        self.assertEqual(['www', 'org'], result)
+
+    def test_regex_findall_none(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_findall('(?<=\W)\w{4}(?=\W)')")
+        self.assertEqual([], result)
+
+    def test_regex_findall_case(self):
+        result = self.eval(
+            "'catCatCAT' | regex_findall('cat', ignorecase=True)")
+        self.assertEqual(['cat', 'Cat', 'CAT'], result)
+        result = self.eval(
+            "'catCatCAT' | regex_findall('cat')")
+        self.assertEqual(['cat'], result)
+
+    def test_regex_replace(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_replace('(?<=\W)(\w{3})(?=\W)', '\"\\1\"')")
+        self.assertEqual('http://"www".python."org"/', result)
+
+    def test_regex_replace_default(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_replace('(?<=\W)\w{3}(?=\W)')")
+        self.assertEqual('http://.python./', result)
+
+    def test_regex_replace_once(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_replace('(?<=\W)(\w{3})(?=\W)', '\"\\1\"', count=1)")
+        self.assertEqual('http://"www".python.org/', result)
+
+    def test_regex_not_multiline(self):
+        in_str = "x = 1\ny = 2"
+        result = self.eval(
+            r"in_str | regex_replace('^', '## ')", in_str=in_str)
+        self.assertEqual("## x = 1\ny = 2", result)
+
+    def test_regex_multiline(self):
+        in_str = "x = 1\ny = 2"
+        result = self.eval(
+            r"in_str | regex_replace('^', '## ', multiline=True)",
+            in_str=in_str)
+        self.assertEqual("## x = 1\n## y = 2", result)
+
+    def test_regex_search(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_search('(?<=\W)\w{3}(?=\W)')")
+        self.assertEqual('www', result)
+
+    def test_regex_search_none(self):
+        result = self.eval(
+            "'http://www.python.org/' | "
+            r"regex_search('(?<=\W)\w{4}(?=\W)')")
+        self.assertEqual('', result)
+
+    def test_regex_search_case(self):
+        result = self.eval(
+            "'CatcatCAT' | regex_search('cat', ignorecase=True)")
+        self.assertEqual('Cat', result)
+        result = self.eval(
+            "'CatcatCAT' | regex_search('cat')")
+        self.assertEqual('cat', result)
+
     def test_zip(self):
         qtys = [10, 1]
         result = self.eval(

@@ -10,6 +10,7 @@
 
 from collections import abc as abcoll
 import itertools
+import re
 import typing
 
 try:
@@ -23,8 +24,9 @@ from . import _utils
 _TRUE_VALUES = frozenset(['yes', 'true', '1'])
 
 __all__ = ['bool_', 'combine', 'dict2items', 'flatten',
-           'ipaddr', 'ipv4', 'ipv6', 'items2dict',
-           'json_query', 'zip_', 'zip_longest']
+           'ipaddr', 'ipv4', 'ipv6', 'items2dict', 'json_query',
+           'regex_escape', 'regex_findall', 'regex_replace',
+           'regex_search', 'zip_', 'zip_longest']
 
 
 def bool_(value: typing.Any) -> bool:
@@ -217,6 +219,80 @@ def json_query(value: typing.Any, query: str) -> typing.Any:
         raise RuntimeError("The json_query filter requires jmespath "
                            "python package to be installed")
     return jmespath.search(query, value)
+
+
+def regex_escape(value: str) -> str:
+    """Escape special regular expression characters in a string.
+
+    .. versionadded:: 1.1
+    """
+    return re.escape(value)
+
+
+def regex_findall(
+    value: str,
+    pattern: str,
+    *,
+    multiline: bool = False,
+    ignorecase: bool = False,
+) -> typing.List[str]:
+    """Find all occurencies of a pattern in a string.
+
+    .. versionadded:: 1.1
+
+    :param pattern: Python regular expression.
+    :param multiline: Whether ^ matches a beginning of each line, not just
+        beginning of the string.
+    :param ignorecase: Whether to ignore case when matching.
+    """
+    flags = _utils.regex_flags(multiline, ignorecase)
+    return [x.group(0) for x in re.finditer(pattern, value, flags=flags)]
+
+
+def regex_replace(
+    value: str,
+    pattern: str,
+    replacement: str = '',
+    *,
+    multiline: bool = False,
+    ignorecase: bool = False,
+    count: int = 0,
+) -> str:
+    """Replace all occurencies of a pattern in a string.
+
+    .. versionadded:: 1.1
+
+    :param pattern: Python regular expression.
+    :param replacement: String to replace with, an empty string by default.
+    :param multiline: Whether ^ matches a beginning of each line, not just
+        beginning of the string.
+    :param ignorecase: Whether to ignore case when matching.
+    :param count: How many occurencies to replace. Zero (the default) means
+        replace all.
+    """
+    flags = _utils.regex_flags(multiline, ignorecase)
+    return re.sub(pattern, replacement, value, count=count, flags=flags)
+
+
+def regex_search(
+    value: str,
+    pattern: str,
+    *,
+    multiline: bool = False,
+    ignorecase: bool = False,
+) -> str:
+    """Find an occurence of a pattern in a string.
+
+    .. versionadded:: 1.1
+
+    :param pattern: Python regular expression.
+    :param multiline: Whether ^ matches a beginning of each line, not just
+        beginning of the string.
+    :param ignorecase: Whether to ignore case when matching.
+    """
+    flags = _utils.regex_flags(multiline, ignorecase)
+    match = re.search(pattern, value, flags=flags)
+    return match.group(0) if match is not None else ""
 
 
 def zip_(first: typing.Sequence, *other: typing.Sequence) -> typing.Iterator:

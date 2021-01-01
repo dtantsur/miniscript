@@ -1,6 +1,7 @@
 from collections import abc as abcoll
 import ipaddress
 import itertools
+import re
 import typing
 
 
@@ -148,3 +149,12 @@ def flatten(
         for x in value
     )
     return itertools.chain.from_iterable(iterables)
+
+
+def regex_flags(multiline: bool, ignorecase: bool) -> int:
+    flags = 0
+    if multiline:
+        flags |= re.MULTILINE
+    if ignorecase:
+        flags |= re.IGNORECASE
+    return flags
