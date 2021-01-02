@@ -1,0 +1,7 @@
+---
+- return:
+    result:
+      value1: "{{ 'test_name'
+                  | regex_replace('^(.*)_name$', '\\\\1') }}"
+      value2: "{{ 'test_name'
+                  | regex_replace('^(.*)_name$', '\\1') }}"

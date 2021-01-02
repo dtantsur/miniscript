@@ -2,8 +2,9 @@ from collections import abc
 import typing
 
 import jinja2
+from jinja2 import lexer
 from jinja2 import nativetypes  # type: ignore
-from jinja2 import sandbox  # type: ignore
+from jinja2 import sandbox
 
 
 # NOTE(dtantsur): NativeTemplate calls dict() breaking lazy rendering
@@ -28,8 +29,23 @@ class Environment(sandbox.Environment):  # type: ignore
     def __init__(self):
         super().__init__(autoescape=False)
 
+    def _fixup_slashes(self, expr: str) -> typing.Iterator[str]:
+        # See https://github.com/ansible/ansible/issues/11891
+        expr = self.preprocess(expr)
+        in_variable = False
+        for _lineno, token_type, value in self.lex(expr):
+            if token_type == lexer.TOKEN_VARIABLE_BEGIN:
+                in_variable = True
+            elif token_type == lexer.TOKEN_VARIABLE_END:
+                in_variable = False
+            elif in_variable and token_type == lexer.TOKEN_STRING:
+                value = value.replace("\\", "\\\\")
+            yield value
+
     def evaluate(self, expr: str, context: 'Context') -> typing.Any:
         """Evaluate an expression."""
+        if '\\' in expr:
+            expr = ''.join(self._fixup_slashes(expr))
         return self.from_string(expr).render(context)
 
     def evaluate_recursive(self, source, context: 'Context'):

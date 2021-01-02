@@ -9,17 +9,17 @@ class EnvironmentTestCase(unittest.TestCase):
     engine = miniscript.Engine({})
     env = engine.environment
 
-    def test__evaluate(self):
+    def test_evaluate(self):
         context = miniscript.Context(self.engine, answer=42)
         result = self.env.evaluate("answer is {{answer}}", context)
         self.assertEqual("answer is 42", result)
 
-    def test__evaluate_with_quotes(self):
+    def test_evaluate_with_quotes(self):
         context = miniscript.Context(self.engine, answer='"42"!')
         result = self.env.evaluate("answer is {{answer}}", context)
         self.assertEqual('answer is "42"!', result)
 
-    def test__evaluate_recursive(self):
+    def test_evaluate_recursive(self):
         data = {
             "answer": 42,
             "text": "answer is {{ answer }}",
@@ -38,7 +38,7 @@ class EnvironmentTestCase(unittest.TestCase):
         result = self.env.evaluate_recursive(result, context)
         self.assertEqual([42, 420, 'ANSWER IS 42'], result["value"])
 
-    def test__evaluate_recursive_infinite(self):
+    def test_evaluate_recursive_infinite(self):
         data = {
             "key": "{{ indirect }}",
             "value": {
@@ -50,6 +50,12 @@ class EnvironmentTestCase(unittest.TestCase):
         context = miniscript.Context(self.engine, data)
         result = self.env.evaluate_recursive("{{ value }}", context)
         self.assertIsInstance(result, _context.Namespace)
+
+    def test_evaluate_slashes_fixup(self):
+        expr = r"A slash outside \ {{ '\foo\\' | replace('f', '\1') }}"
+        context = miniscript.Context(self.engine)
+        result = self.env.evaluate(expr, context)
+        self.assertEqual(r"A slash outside \ \\1oo\\", result)
 
 
 class ContextTestCase(unittest.TestCase):

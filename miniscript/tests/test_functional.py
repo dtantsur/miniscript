@@ -18,10 +18,10 @@ class AddTask(miniscript.Task):
         return {"sum": sum(params['values'])}
 
 
-class TestFromDocs(unittest.TestCase):
-    """A test based on Engine docs."""
+class FunctionalTests(unittest.TestCase):
 
-    def test(self):
+    def test_from_docs(self):
+        """A test based on Engine docs."""
         with open('miniscript/tests/example-docs.yaml') as fp:
             code = yaml.safe_load(fp)
 
@@ -30,14 +30,20 @@ class TestFromDocs(unittest.TestCase):
         result = engine.execute(code, context)
         self.assertEqual(90131, result)
 
-
-class TestLongWithBuiltins(unittest.TestCase):
-    """A test exercising built-ins a bit."""
-
-    def test(self):
+    def test_long_with_builtins(self):
+        """A test exercising built-ins a bit."""
         with open('miniscript/tests/example-large.yaml') as fp:
             code = yaml.safe_load(fp)
 
         engine = miniscript.Engine({})
         result = engine.execute(code)
         self.assertEqual(42, result)
+
+    def test_slashes_handling(self):
+        """Test ansible-compatible slashes handling."""
+        with open('miniscript/tests/ansible_bug_11891.yaml') as fp:
+            code = yaml.safe_load(fp)
+
+        engine = miniscript.Engine({})
+        result = engine.execute(code)
+        self.assertEqual({"value1": "\\1", "value2": "test"}, result)

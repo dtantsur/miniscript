@@ -333,6 +333,18 @@ def regex_replace(
 ) -> str:
     """Replace all occurencies of a pattern in a string.
 
+    MiniScript implements Ansible-compatible slashes handling to avoid
+    duplication of slashes inside Jinja expressions.
+
+    .. code-block:: yaml
+
+        - vars:
+            url: "http://www.python.org"
+
+        - return: "{{ url | regex_replace('(?<=\\\\W)\\\\w{3}(?=\\\\W|$)',
+                                          '\\"\\\\1\\") }}"
+          # returns 'http://"www".python."org"'
+
     .. versionadded:: 1.1
 
     :param pattern: Python regular expression.
@@ -374,8 +386,8 @@ def symmetric_difference(value: list, other: list) -> list:
     .. code-block:: yaml
 
         - vars:
-            new_list: >-
-              {{ [2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15]) }}
+            new_list: "{{ [2, 4, 6, 8, 12]
+                          | symmetric_difference([3, 6, 9, 12, 15]) }}"
             # -> [2, 3, 4, 8, 9, 15]
 
     .. versionadded:: 1.1

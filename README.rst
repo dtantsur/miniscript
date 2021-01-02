@@ -29,6 +29,7 @@ MiniScript does offer:
 * Lean and easily extensible feature set.
 * A few filters most useful for data processing.
 * An ability to return a value from a script.
+* Ansible-compatible backslash handling.
 * 100% unit test coverage.
 * A permissive license (BSD).
 
