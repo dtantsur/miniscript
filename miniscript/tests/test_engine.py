@@ -17,12 +17,14 @@ class TestTask(miniscript.Task):
 
 
 class FinishTask(miniscript.Task):
+    optional_params = {'value': None}
+
     def execute(
         self,
         params: typing.Mapping[str, typing.Any],
         context: miniscript.Context,
     ) -> None:
-        raise _types.FinishScript(42)
+        raise _types.FinishScript(params.get('value', 42))
 
 
 class FailTask(miniscript.Task):
@@ -104,6 +106,18 @@ class EngineTestCase(unittest.TestCase):
     def test_execute_finish(self):
         result = self.engine.execute([{"finish": None}])
         self.assertEqual(42, result)
+
+    def test_execute_finish_undefined(self):
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "Script returned undefined value",
+                               self.engine.execute,
+                               [{"finish": {'value': '{{ invalid }}'}}])
+
+    def test_execute_finish_invalid(self):
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "'invalid' is undefined",
+                               self.engine.execute,
+                               [{"finish": {'value': '{{ invalid + 1 }}'}}])
 
     def test_execute_fail(self):
         self.assertRaisesRegex(miniscript.ExecutionFailed,

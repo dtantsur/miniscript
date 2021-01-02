@@ -1,6 +1,8 @@
 import logging
 import typing
 
+import jinja2
+
 from . import _context
 from . import _task
 from . import _types
@@ -67,11 +69,16 @@ class Script:
         for item in self.tasks:
             self.engine.logger.debug("Execution task %s", item.name)
             try:
-                item(context)
-            except _types.FinishScript as result:
-                self.engine.logger.info("Execution finished with result %s",
-                                        result.result)
-                return _context.materialize(result.result)
+                try:
+                    item(context)
+                except _types.FinishScript as result:
+                    value = _context.materialize(result.result)
+                    if isinstance(value, jinja2.Undefined):
+                        raise _types.ExecutionFailed(
+                            "Script returned undefined value") from None
+                    self.engine.logger.info(
+                        "Execution finished with result %s", value)
+                    return value
             except _types.ExecutionFailed as exc:
                 self.engine.logger.error("Execution failed: %s", exc)
                 raise
@@ -236,7 +243,10 @@ class Engine:
         :param source: Script source code in JSON format.
             An implicit :class:`Script` object is created from it.
         :param context: A :class:`Context` object to hold execution context.
-        :return: The outcome of the script or `None`
+        :return: The outcome of the script or `None`.
+
+            .. note:: :class:`ExecutionFailed` is raised if a script returns
+                      an undefined value.
         :raises: :class:`ExecutionFailed` on a runtime error.
         :raises: :class:`InvalidScript` if the script is invalid.
         :raises: :class:`InvalidTask` if a task is invalid.
