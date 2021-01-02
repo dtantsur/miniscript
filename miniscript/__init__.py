@@ -1,3 +1,4 @@
+from . import filters
 from . import tasks
 from ._context import Context
 from ._context import Environment
@@ -14,7 +15,7 @@ from ._types import UnknownTask
 
 
 __all__ = [
-    'tasks',
+    'filters', 'tasks',
     'Context', 'Environment', 'Namespace',
     'Engine', 'Script',
     'Task', 'Result',
