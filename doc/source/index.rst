@@ -1,7 +1,6 @@
 .. include:: ../../README.rst
 
-API documentation
-=================
+.. contents::
 
 Running scripts
 ---------------
@@ -48,13 +47,15 @@ Advanced
 .. autoclass:: miniscript.Environment
    :no-members:
 
+.. autoclass:: miniscript.Namespace
+
 .. autoclass:: miniscript.Result
 
 .. autoclass:: miniscript.Script
    :special-members: __call__
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

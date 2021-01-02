@@ -276,7 +276,7 @@ class Task(metaclass=abc.ABCMeta):
 
     def validate(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: _context.Namespace,
         context: _context.Context,
     ) -> None:
         """Validate the passed parameters.
@@ -387,7 +387,7 @@ class Task(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def execute(
         self,
-        params: typing.Mapping[str, typing.Any],
+        params: _context.Namespace,
         context: _context.Context,
     ) -> typing.Optional[typing.Mapping[str, typing.Any]]:
         """Execute the task.

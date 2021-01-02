@@ -73,11 +73,28 @@ Template.environment_class = Environment
 
 
 class Namespace(abc.MutableMapping):
-    """A namespace with value rendering."""
+    """A namespace with value rendering.
+
+    Works like a dictionary, but evaluates values on access using the provided
+    templating environment.
+
+    .. versionadded:: 1.1
+
+    :param environment: Templating environment to use.
+    :param context: A :class:`Context` object to hold execution context.
+    :param args: Passed to ``dict`` unchanged.
+    :param kwargs: Passed to ``dict`` unchanged.
+    """
 
     __slots__ = ("_env", "_ctx", "_data")
 
-    def __init__(self, environment, context, *args, **kwargs):
+    def __init__(
+        self,
+        environment: Environment,
+        context: 'Context',
+        *args,
+        **kwargs
+    ):
         self._data = dict(*args, **kwargs)
         self._env = environment
         self._ctx = context
@@ -101,10 +118,16 @@ class Namespace(abc.MutableMapping):
     def __repr__(self):
         return f"{self.__class__.__name__} {self._data}"
 
-    def copy(self):
+    def copy(self) -> 'Namespace':
+        """Make a shallow copy of the namespace."""
         return Namespace(self._env, self._ctx, self._data)
 
-    def _materialize(self):
+    def get_raw(self, key, default=None) -> typing.Any:
+        """Get a value without evaluating it."""
+        return self._data.get(key, default)
+
+    def materialize(self) -> dict:
+        """Recursively evaluate values, returning a normal dict."""
         return {key: materialize(value) for key, value in self.items()}
 
 
@@ -117,13 +140,14 @@ class Context(Namespace):
                else engine.environment)
         super().__init__(env, self, *args, **kwargs)
 
-    def copy(self):
+    def copy(self) -> 'Context':
+        """Make a shallow copy of the context."""
         return Context(self._env, self._data)
 
 
 def materialize(value):
     """Evaluate and meterialize value, getting rid of namespaces."""
     if isinstance(value, Namespace):
-        return value._materialize()
+        return value.materialize()
     else:
         return value

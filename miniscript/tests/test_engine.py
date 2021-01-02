@@ -47,7 +47,7 @@ class EngineTestCase(unittest.TestCase):
 
     def test_no_tasks(self):
         engine = miniscript.Engine()
-        self.assertEqual({'block', 'fail', 'log', 'return', 'vars'},
+        self.assertEqual({'assert', 'block', 'fail', 'log', 'return', 'vars'},
                          set(engine.tasks))
         # Sanity-check: everything in tasks is exposed.
         for item in dir(tasks):
@@ -55,7 +55,7 @@ class EngineTestCase(unittest.TestCase):
                 self.assertIn(item.lower(), engine.tasks)
 
     def test_builtin_tasks(self):
-        expected = {'block', 'fail', 'log', 'return', 'vars'}
+        expected = {'assert', 'block', 'fail', 'log', 'return', 'vars'}
         self.assertEqual(expected, expected.intersection(self.engine.tasks))
         # Sanity-check: everything in tasks is exposed.
         for item in dir(tasks):

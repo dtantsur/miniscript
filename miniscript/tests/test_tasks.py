@@ -31,6 +31,48 @@ class TasksTestCase(unittest.TestCase):
         self.engine = miniscript.Engine({'test': TestTask})
         self.context = miniscript.Context(self.engine, answer=42)
 
+    def test_assert(self):
+        defn = {"assert": {"that": [
+            "True",
+            "banana is undefined",
+            "40 + 2 == 42",
+        ]}}
+        task = tasks.Assert("assert", defn, self.engine)
+        task(self.context)
+
+    def test_assert_singleton(self):
+        defn = {"assert": [
+            "True",
+            "banana is undefined",
+            "40 + 2 == 42",
+        ]}
+        task = tasks.Assert("assert", defn, self.engine)
+        task(self.context)
+
+    def test_assert_fails(self):
+        for value in ["False", "banana is defined", "40 + 2 == 100"]:
+            with self.subTest(false_value=value):
+                defn = {"assert": {"that": value}}
+                task = tasks.Assert("assert", defn, self.engine)
+                self.assertRaisesRegex(miniscript.ExecutionFailed,
+                                       "evaluated to False",
+                                       task, self.context)
+
+    def test_assert_with_message(self):
+        defn = {"assert": {"that": ["True", "False"],
+                           "fail_msg": "I failed"}}
+        task = tasks.Assert("assert", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "I failed", task, self.context)
+
+    def test_assert_misconfigured(self):
+        defn = {"assert": {"that": {},
+                           "fail_msg": "I failed"}}
+        task = tasks.Assert("assert", defn, self.engine)
+        self.assertRaisesRegex(miniscript.ExecutionFailed,
+                               "must be a list or a string",
+                               task, self.context)
+
     def test_return(self):
         defn = {"return": {"result": "{{ answer }}"}}
         task = tasks.Return("return", defn, self.engine)

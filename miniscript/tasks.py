@@ -10,7 +10,60 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
 
 # Fix Engine documentation when updating this.
-__all__ = ['Block', 'Fail', 'Log', 'Return', 'Vars']
+__all__ = ['Assert', 'Block', 'Fail', 'Log', 'Return', 'Vars']
+
+
+class Assert(_task.Task):
+    """An assertion.
+
+    Fails if at least one of the provided statements is false:
+
+    .. code-block:: yaml
+
+        - vars:
+            some_value: 42
+
+        - assert:
+            - some_value is defined
+            - some_value == 42
+
+    .. versionadded:: 1.1
+    """
+
+    required_params = {"that": None}
+    """Requires one or more statements as a list or a string."""
+
+    optional_params = {"fail_msg": None}
+    """Can accept an optional failure message."""
+
+    singleton_param = "that"
+    """The statement list can be provided directly to ``assert``."""
+
+    def validate(
+        self,
+        params: '_context.Namespace',
+        context: '_context.Context',
+    ) -> None:
+        super().validate(params, context)
+        that = params.get_raw('that')
+        if isinstance(that, str):
+            params['that'] = [that]
+        elif not isinstance(that, list):
+            raise TypeError(f"'that' must be a list or a string, got '{that}'")
+
+    def execute(
+        self,
+        params: '_context.Namespace',
+        context: '_context.Context',
+    ) -> None:
+        that = params.get_raw('that')
+        for expr in that:
+            value = self.engine.environment.evaluate_code(str(expr), context)
+            if not value:
+                fail_msg = params.get('fail_msg')
+                if not fail_msg:
+                    fail_msg = f"`{expr}` evaluated to False"
+                raise AssertionError(fail_msg)
 
 
 class Block(_task.Task):
@@ -35,7 +88,7 @@ class Block(_task.Task):
 
     def validate(
         self,
-        params: typing.MutableMapping[str, typing.Any],
+        params: '_context.Namespace',
         context: '_context.Context',
     ) -> None:
         super().validate(params, context)

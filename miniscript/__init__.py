@@ -1,6 +1,7 @@
 from . import tasks
 from ._context import Context
 from ._context import Environment
+from ._context import Namespace
 from ._engine import Engine
 from ._engine import Script
 from ._task import Result
@@ -14,7 +15,7 @@ from ._types import UnknownTask
 
 __all__ = [
     'tasks',
-    'Context', 'Environment',
+    'Context', 'Environment', 'Namespace',
     'Engine', 'Script',
     'Task', 'Result',
     'Error', 'ExecutionFailed', 'InvalidTask', 'InvalidScript', 'UnknownTask',
