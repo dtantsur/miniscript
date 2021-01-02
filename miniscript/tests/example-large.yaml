@@ -30,4 +30,8 @@ tasks:
       info: "we are leaving"
 
   - name: "Returning the value"
-    return: "{{ smart_encryption / random }}"
+    return:
+      result:
+        decrypted: "{{ smart_encryption / random }}"
+        params:
+          random: "{{ random }}"

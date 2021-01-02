@@ -71,7 +71,7 @@ class Script:
             except _types.FinishScript as result:
                 self.engine.logger.info("Execution finished with result %s",
                                         result.result)
-                return result.result
+                return _context.materialize(result.result)
             except _types.ExecutionFailed as exc:
                 self.engine.logger.error("Execution failed: %s", exc)
                 raise

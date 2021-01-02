@@ -37,7 +37,10 @@ class FunctionalTests(unittest.TestCase):
 
         engine = miniscript.Engine({})
         result = engine.execute(code)
-        self.assertEqual(42, result)
+        self.assertEqual({'decrypted': 42, 'params': {'random': 13}}, result)
+        # No contexts or namespaces in the result!
+        self.assertIs(type(result), dict)
+        self.assertIs(type(result['params']), dict)
 
     def test_slashes_handling(self):
         """Test ansible-compatible slashes handling."""
@@ -47,3 +50,4 @@ class FunctionalTests(unittest.TestCase):
         engine = miniscript.Engine({})
         result = engine.execute(code)
         self.assertEqual({"value1": "\\1", "value2": "test"}, result)
+        self.assertIs(type(result), dict)

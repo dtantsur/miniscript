@@ -104,6 +104,9 @@ class Namespace(abc.MutableMapping):
     def copy(self):
         return Namespace(self._env, self._ctx, self._data)
 
+    def _materialize(self):
+        return {key: materialize(value) for key, value in self.items()}
+
 
 class Context(Namespace):
     """A context of an execution."""
@@ -116,3 +119,11 @@ class Context(Namespace):
 
     def copy(self):
         return Context(self._env, self._data)
+
+
+def materialize(value):
+    """Evaluate and meterialize value, getting rid of namespaces."""
+    if isinstance(value, Namespace):
+        return value._materialize()
+    else:
+        return value
