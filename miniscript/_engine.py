@@ -89,13 +89,8 @@ class Script:
                 raise _types.ExecutionFailed(msg)
 
 
-# Fix Engine documentation when updating this.
 _BUILTINS: typing.Dict[str, typing.Type[_task.Task]] = {
-    "block": tasks.Block,
-    "fail": tasks.Fail,
-    "log": tasks.Log,
-    "return": tasks.Return,
-    "vars": tasks.Vars,
+    name.lower(): getattr(tasks, name) for name in tasks.__all__
 }
 
 _FILTERS: typing.Dict[str, typing.Callable] = {
@@ -107,6 +102,9 @@ class Engine:
     """Engine that runs scripts.
 
     :param tasks: Tasks to use for this engine, see :attr:`Engine.tasks`.
+
+        .. versionchanged:: 1.1
+           Tasks are now optional, only built-in tasks are used by default.
     :param logger: Logger to use for all logging. If `None`, a default one
         is created.
     :param additional_filters: If `True`, additional Ansible-compatible filters
@@ -211,18 +209,21 @@ class Engine:
 
     def __init__(
         self,
-        tasks: typing.Dict[str, typing.Type[_task.Task]],
+        tasks: typing.Optional[
+            typing.Dict[str, typing.Type[_task.Task]]
+        ] = None,
         logger: typing.Optional[logging.Logger] = None,
         additional_filters: bool = True,
     ) -> None:
         """Create a new engine."""
-        conflict = set(tasks).intersection(_task.Task._KNOWN_PARAMETERS)
-        if conflict:
-            raise ValueError('Tasks %s conflict with built-in parameters'
-                             % ', '.join(conflict))
-
         self.tasks = _BUILTINS.copy()
-        self.tasks.update(tasks)
+        if tasks is not None:
+            conflict = set(tasks).intersection(_task.Task._KNOWN_PARAMETERS)
+            if conflict:
+                raise ValueError(f"Tasks {', '.join(conflict)} conflict with "
+                                 "built-in parameters")
+            self.tasks.update(tasks)
+
         if logger is None:
             logger = logging.getLogger('miniscript')
         self.logger = logger

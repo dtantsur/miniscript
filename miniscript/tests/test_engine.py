@@ -5,6 +5,7 @@ from unittest import mock
 
 import miniscript
 from miniscript import _types
+from miniscript import tasks
 
 
 class TestTask(miniscript.Task):
@@ -43,6 +44,23 @@ class EngineTestCase(unittest.TestCase):
         self.engine = miniscript.Engine({"test": TestTask,
                                          "finish": FinishTask,
                                          "fail": FailTask})
+
+    def test_no_tasks(self):
+        engine = miniscript.Engine()
+        self.assertEqual({'block', 'fail', 'log', 'return', 'vars'},
+                         set(engine.tasks))
+        # Sanity-check: everything in tasks is exposed.
+        for item in dir(tasks):
+            if isinstance(getattr(tasks, item), typing.Type):
+                self.assertIn(item.lower(), engine.tasks)
+
+    def test_builtin_tasks(self):
+        expected = {'block', 'fail', 'log', 'return', 'vars'}
+        self.assertEqual(expected, expected.intersection(self.engine.tasks))
+        # Sanity-check: everything in tasks is exposed.
+        for item in dir(tasks):
+            if isinstance(getattr(tasks, item), typing.Type):
+                self.assertIn(item.lower(), self.engine.tasks)
 
     def test_logger(self):
         self.assertIsInstance(self.engine.logger, logging.Logger)

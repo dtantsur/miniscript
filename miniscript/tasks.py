@@ -9,6 +9,10 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from . import _context
 
 
+# Fix Engine documentation when updating this.
+__all__ = ['Block', 'Fail', 'Log', 'Return', 'Vars']
+
+
 class Block(_task.Task):
     """Grouping of tasks.
 
