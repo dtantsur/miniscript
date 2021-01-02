@@ -235,8 +235,8 @@ class TestFilters(unittest.TestCase):
         self.assertEqual(["salad"], result)
 
     def test_regex_escape(self):
-        result = self.eval("'http://www.python.org' | regex_escape")
-        self.assertEqual(r"http://www\.python\.org", result)
+        result = self.eval("'www.python.org' | regex_escape")
+        self.assertEqual(r"www\.python\.org", result)
 
     def test_regex_findall(self):
         result = self.eval(
