@@ -240,14 +240,14 @@ class TestFilters(unittest.TestCase):
 
     def test_regex_findall(self):
         result = self.eval(
-            "'http://www.python.org/' | "
-            r"regex_findall('(?<=\W)\w{3}(?=\W)')")
+            "'http://www.python.org' | "
+            r"regex_findall('(?<=\W)\w{3}(?=\W|$)')")
         self.assertEqual(['www', 'org'], result)
 
     def test_regex_findall_none(self):
         result = self.eval(
-            "'http://www.python.org/' | "
-            r"regex_findall('(?<=\W)\w{4}(?=\W)')")
+            "'http://www.python.org' | "
+            r"regex_findall('(?<=\W)\w{4}(?=\W|$)')")
         self.assertEqual([], result)
 
     def test_regex_findall_case(self):
@@ -260,21 +260,21 @@ class TestFilters(unittest.TestCase):
 
     def test_regex_replace(self):
         result = self.eval(
-            "'http://www.python.org/' | "
-            r"regex_replace('(?<=\W)(\w{3})(?=\W)', '\"\\1\"')")
-        self.assertEqual('http://"www".python."org"/', result)
+            "'http://www.python.org' | "
+            r"regex_replace('(?<=\W)(\w{3})(?=\W|$)', '\"\\1\"')")
+        self.assertEqual('http://"www".python."org"', result)
 
     def test_regex_replace_default(self):
         result = self.eval(
-            "'http://www.python.org/' | "
-            r"regex_replace('(?<=\W)\w{3}(?=\W)')")
-        self.assertEqual('http://.python./', result)
+            "'http://www.python.org' | "
+            r"regex_replace('(?<=\W)\w{3}(?=\W|$)')")
+        self.assertEqual('http://.python.', result)
 
     def test_regex_replace_once(self):
         result = self.eval(
-            "'http://www.python.org/' | "
-            r"regex_replace('(?<=\W)(\w{3})(?=\W)', '\"\\1\"', count=1)")
-        self.assertEqual('http://"www".python.org/', result)
+            "'http://www.python.org' | "
+            r"regex_replace('(?<=\W)(\w{3})(?=\W|$)', '\"\\1\"', count=1)")
+        self.assertEqual('http://"www".python.org', result)
 
     def test_regex_not_multiline(self):
         in_str = "x = 1\ny = 2"
@@ -309,6 +309,22 @@ class TestFilters(unittest.TestCase):
             "'CatcatCAT' | regex_search('cat')")
         self.assertEqual('cat', result)
 
+    def test_symmetric_difference(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15])")
+        self.assertCountEqual([2, 3, 4, 8, 9, 15], result)
+
+    def test_to_datetime(self):
+        result = self.eval(
+            "(('2020-12-31 23:59:59' | to_datetime)"
+            "- ('12/01/2020' | to_datetime('%m/%d/%Y'))).days")
+        self.assertEqual(30, result)
+
+    def test_union(self):
+        result = self.eval(
+            "[2, 4, 6, 8, 12] | union([3, 6, 9, 12, 15])")
+        self.assertCountEqual([2, 3, 4, 6, 8, 9, 12, 15], result)
+
     def test_urlsplit(self):
         url = ("http://user:password@www.acme.com:9000/dir/index.html"
                "?query=term#fragment")
@@ -325,22 +341,6 @@ class TestFilters(unittest.TestCase):
             "username": "user"
         }
         self.assertEqual(expected, result)
-
-    def test_symmetric_difference(self):
-        result = self.eval(
-            "[2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15])")
-        self.assertCountEqual([2, 3, 4, 8, 9, 15], result)
-
-    def test_to_datetime(self):
-        result = self.eval(
-            "(('2020-12-31 23:59:59' | to_datetime)"
-            "- ('12/01/2020' | to_datetime('%m/%d/%Y'))).days")
-        self.assertEqual(30, result)
-
-    def test_union(self):
-        result = self.eval(
-            "[2, 4, 6, 8, 12] | union([3, 6, 9, 12, 15])")
-        self.assertCountEqual([2, 3, 4, 6, 8, 9, 12, 15], result)
 
     def test_urlsplit_component(self):
         url = ("http://user:password@www.acme.com:9000/dir/index.html"

@@ -36,6 +36,13 @@ def bool_(value: typing.Any) -> bool:
     """Convert a value to a boolean according to Ansible rules.
 
     The corresponding filter is called ``bool`` (without an underscore).
+    True values are ``True``, strings "Yes", "True" and "1", number 1;
+    everything else is False.
+
+    .. code-block:: yaml
+
+        - vars:
+            is_true: "{{ 'YES' | bool }}"
 
     .. versionadded:: 1.1
     """
@@ -56,6 +63,15 @@ def combine(
     list_merge: str = 'replace',
 ) -> typing.Dict:
     """Combine several dictionaries into one.
+
+    A typical pattern of adding a value to a dictionary:
+
+    .. code-block:: yaml
+
+        - vars:
+            new_dict: "{{ old_dict | combine({'new key': 'new value'}) }}"
+
+    When a list is provided as input, all items from it are combined.
 
     .. versionadded:: 1.1
 
@@ -86,7 +102,13 @@ def combine(
 
 
 def difference(value: list, other: list) -> list:
-    """Set difference of two lists.
+    """Difference of two lists.
+
+    .. code-block:: yaml
+
+        - vars:
+            new_list: "{{ [2, 4, 6, 8, 12] | difference([3, 6, 9, 12, 15]) }}"
+            # -> [2, 4, 8]
 
     .. versionadded:: 1.1
     """
@@ -135,6 +157,20 @@ def flatten(
 ) -> list:
     """Flatten a list.
 
+    .. code-block:: yaml
+
+        - vars:
+            new_list: "{{ [1, 2, [3, [4, 5, [6]], 7]] | flatten }}"
+            # -> [1, 2, 3, 4, 5, 6, 7]
+
+    To flatten only the top level, use the ``levels`` argument:
+
+    .. code-block:: yaml
+
+        - vars:
+            new_list: "{{ [1, 2, [3, [4, 5, [6]], 7]] | flatten(levels=1) }}"
+            # -> [1, 2, 3, [4, 5, [6]], 7]
+
     .. versionadded:: 1.1
 
     :param levels: Number of levels to flatten. If `None` - flatten everything.
@@ -143,7 +179,13 @@ def flatten(
 
 
 def intersect(value: list, other: list) -> list:
-    """Set intersection of two lists.
+    """Intersection of two lists.
+
+    .. code-block:: yaml
+
+        - vars:
+            new_list: "{{ [2, 4, 6, 8, 12] | intersect([3, 6, 9, 12, 15]) }}"
+            # -> [6, 12]
 
     .. versionadded:: 1.1
     """
@@ -233,6 +275,8 @@ def json_query(value: typing.Any, query: str) -> typing.Any:
 
     Requires the `jmespath <https://pypi.org/project/jmespath/>`_ library.
     See `jmespath examples <https://jmespath.org/examples.html>`_.
+
+    .. versionadded:: 1.1
     """
     if jmespath is None:
         raise RuntimeError("The json_query filter requires jmespath "
@@ -256,6 +300,16 @@ def regex_findall(
     ignorecase: bool = False,
 ) -> typing.List[str]:
     """Find all occurencies of a pattern in a string.
+
+    For example:
+
+    .. code-block:: yaml
+
+        - vars:
+            url: "http://www.python.org"
+
+        - return: "{{ url | regex_findall('(?<=\\\\W)\\\\w{3}(?=\\\\W|$)') }}"
+          # returns ['www', 'org']
 
     .. versionadded:: 1.1
 
@@ -315,7 +369,14 @@ def regex_search(
 
 
 def symmetric_difference(value: list, other: list) -> list:
-    """Set symmetric difference of two lists.
+    """Symmetric difference (exclusive OR) of two lists.
+
+    .. code-block:: yaml
+
+        - vars:
+            new_list: >-
+              {{ [2, 4, 6, 8, 12] | symmetric_difference([3, 6, 9, 12, 15]) }}
+            # -> [2, 3, 4, 8, 9, 15]
 
     .. versionadded:: 1.1
     """
@@ -336,7 +397,13 @@ def to_datetime(
 
 
 def union(value: list, other: list) -> list:
-    """Set union of two lists.
+    """Union of two lists.
+
+    .. code-block:: yaml
+
+        - vars:
+            new_list: "{{ [2, 4, 6, 8, 12] | union([3, 6, 9, 12, 15]) }}"
+            # -> [2, 3, 4, 6, 8, 9, 12, 15]
 
     .. versionadded:: 1.1
     """
