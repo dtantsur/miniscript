@@ -374,6 +374,6 @@ class ExecuteTestCase(unittest.TestCase):
             self.assertEqual(value is None, item.failed)
             self.assertFalse(item.skipped)
             if value is None:
-                self.assertIn("a number, not 'NoneType'", item.failure)
+                self.assertIn("number, not 'NoneType'", item.failure)
             else:
                 self.assertIsNone(item.failure)
