@@ -69,7 +69,7 @@ class Environment(sandbox.Environment):  # type: ignore
         return self.evaluate(expr, context)
 
 
-Template.environment_class = Environment
+Template.environment_class = Environment  # type: ignore
 
 
 class Namespace(abc.MutableMapping):
